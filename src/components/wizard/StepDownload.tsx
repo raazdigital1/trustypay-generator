@@ -2,29 +2,34 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Image, FileSpreadsheet, Lock, CheckCircle, CreditCard } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Mail } from "lucide-react";
 import { PaystubData } from "@/types/paystub";
-import { useAuth } from "@/hooks/useAuth";
-import { Link } from "react-router-dom";
 
 interface StepDownloadProps {
   data: PaystubData;
 }
 
 const StepDownload = ({ data }: StepDownloadProps) => {
-  const { user } = useAuth();
+  const [email, setEmail] = useState("");
+  const [isPaying, setIsPaying] = useState(false);
+  const [isPaid, setIsPaid] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Mock subscription status - in production, fetch from database
-  const isPro = false;
-  const canDownload = !!user;
+  const handlePayAndDownload = async () => {
+    if (!email) return;
+    setIsPaying(true);
+    // TODO: Integrate Stripe payment + auto-create account
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setIsPaying(false);
+    setIsPaid(true);
+  };
 
   const handleDownload = async (format: "pdf" | "png" | "xlsx") => {
-    if (!canDownload) return;
-
     setIsDownloading(true);
     // TODO: Implement actual PDF generation via edge function
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     setIsDownloading(false);
     alert(`Download ${format.toUpperCase()} - Coming soon!`);
   };
@@ -36,176 +41,24 @@ const StepDownload = ({ data }: StepDownloadProps) => {
           Download Your Paystub
         </h2>
         <p className="text-muted-foreground">
-          Choose your preferred format and download
+          {isPaid
+            ? "Your payment is confirmed — download your paystub below"
+            : "Complete payment to download your professional paystub"}
         </p>
       </div>
 
-      {!user ? (
-        <Card className="border-primary/50 shadow-elegant mb-8">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <Lock className="w-6 h-6 text-primary" />
-            </div>
-            <CardTitle>Sign in to Download</CardTitle>
-            <CardDescription>
-              Create a free account to download your paystub
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <Link to="/signup">
-              <Button className="w-full bg-gradient-primary hover:opacity-90">
-                Create Free Account
-              </Button>
-            </Link>
-            <Link to="/login">
-              <Button variant="outline" className="w-full">
-                Already have an account? Sign In
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+      {!isPaid ? (
+        <PaymentSection
+          email={email}
+          setEmail={setEmail}
+          isPaying={isPaying}
+          onPay={handlePayAndDownload}
+        />
       ) : (
-        <>
-          {/* Subscription Status */}
-          <Card className="mb-8">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center">
-                    <CreditCard className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Current Plan: {isPro ? "Pro" : "Free"}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {isPro
-                        ? "Unlimited paystubs, no watermarks"
-                        : "1 watermarked paystub per month"}
-                    </p>
-                  </div>
-                </div>
-                {!isPro && (
-                  <Button className="bg-gradient-primary hover:opacity-90">
-                    Upgrade to Pro
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Download Options */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            {/* PDF Download */}
-            <Card className="border-2 hover:border-primary/50 transition-colors">
-              <CardHeader className="text-center pb-2">
-                <div className="mx-auto w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center mb-2">
-                  <FileText className="w-6 h-6 text-destructive" />
-                </div>
-                <CardTitle className="text-lg">PDF Document</CardTitle>
-                <CardDescription>Professional format for printing</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  className="w-full"
-                  onClick={() => handleDownload("pdf")}
-                  disabled={isDownloading}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download PDF
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* PNG Download */}
-            <Card className={`border-2 ${isPro ? "hover:border-primary/50" : "opacity-60"} transition-colors`}>
-              <CardHeader className="text-center pb-2">
-                <div className="mx-auto w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-2">
-                  <Image className="w-6 h-6 text-accent" />
-                </div>
-                <CardTitle className="text-lg flex items-center justify-center gap-2">
-                  PNG Image
-                  {!isPro && <Badge variant="secondary">Pro</Badge>}
-                </CardTitle>
-                <CardDescription>High-quality image format</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  className="w-full"
-                  variant={isPro ? "default" : "secondary"}
-                  onClick={() => isPro && handleDownload("png")}
-                  disabled={!isPro || isDownloading}
-                >
-                  {isPro ? (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      Download PNG
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-4 h-4 mr-2" />
-                      Upgrade Required
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Excel Download */}
-            <Card className={`border-2 ${isPro ? "hover:border-primary/50" : "opacity-60"} transition-colors`}>
-              <CardHeader className="text-center pb-2">
-                <div className="mx-auto w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center mb-2">
-                  <FileSpreadsheet className="w-6 h-6 text-success" />
-                </div>
-                <CardTitle className="text-lg flex items-center justify-center gap-2">
-                  Excel File
-                  {!isPro && <Badge variant="secondary">Pro</Badge>}
-                </CardTitle>
-                <CardDescription>Spreadsheet for records</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  className="w-full"
-                  variant={isPro ? "default" : "secondary"}
-                  onClick={() => isPro && handleDownload("xlsx")}
-                  disabled={!isPro || isDownloading}
-                >
-                  {isPro ? (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      Download Excel
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-4 h-4 mr-2" />
-                      Upgrade Required
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Pay Per Stub Option */}
-          {!isPro && (
-            <Card className="border-warning/50 bg-warning/5">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-warning" />
-                      One-Time Purchase: $7.99
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      Get a watermark-free PDF + PNG + Excel for this paystub
-                    </p>
-                  </div>
-                  <Button variant="outline" className="border-warning text-warning hover:bg-warning hover:text-warning-foreground">
-                    Pay $7.99
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </>
+        <DownloadSection
+          isDownloading={isDownloading}
+          onDownload={handleDownload}
+        />
       )}
 
       {/* What's Included */}
@@ -237,5 +90,215 @@ const StepDownload = ({ data }: StepDownloadProps) => {
     </div>
   );
 };
+
+/* ---------- Payment Section ---------- */
+interface PaymentSectionProps {
+  email: string;
+  setEmail: (email: string) => void;
+  isPaying: boolean;
+  onPay: () => void;
+}
+
+const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProps) => (
+  <div className="space-y-6">
+    {/* Pricing Card */}
+    <Card className="border-primary/50 shadow-elegant">
+      <CardHeader className="text-center pb-4">
+        <div className="mx-auto w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+          <CreditCard className="w-7 h-7 text-primary" />
+        </div>
+        <CardTitle className="text-2xl">One-Time Payment</CardTitle>
+        <CardDescription>
+          Pay once and download your paystub instantly
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Price Display */}
+        <div className="text-center bg-muted/50 rounded-lg p-6">
+          <div className="text-4xl font-bold text-foreground mb-1">$7.99</div>
+          <p className="text-sm text-muted-foreground">per paystub</p>
+        </div>
+
+        {/* Included Features */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle className="w-4 h-4 text-accent" />
+            <span>Watermark-free professional PDF</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle className="w-4 h-4 text-accent" />
+            <span>High-quality PNG image</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle className="w-4 h-4 text-accent" />
+            <span>Excel spreadsheet for records</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle className="w-4 h-4 text-accent" />
+            <span>Instant download — no subscription required</span>
+          </div>
+        </div>
+
+        {/* Email + Pay */}
+        <div className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="flex items-center gap-1.5">
+              <Mail className="w-4 h-4" />
+              Email Address
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              We'll send a copy of your paystub and create your free account
+            </p>
+          </div>
+
+          <Button
+            className="w-full bg-gradient-primary hover:opacity-90 text-lg h-12"
+            onClick={onPay}
+            disabled={isPaying || !email}
+          >
+            {isPaying ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
+                Processing Payment...
+              </span>
+            ) : (
+              <>
+                <CreditCard className="w-5 h-5 mr-2" />
+                Pay $7.99 & Download
+              </>
+            )}
+          </Button>
+
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <ShieldCheck className="w-4 h-4" />
+            <span>Secure payment powered by Stripe</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+
+    {/* Pro Subscription Upsell */}
+    <Card className="border-accent/30 bg-accent/5">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h4 className="font-semibold flex items-center gap-2">
+              <Badge className="bg-accent text-accent-foreground">
+                Save 80%
+              </Badge>
+              Pro Plan — $49.99/month
+            </h4>
+            <p className="text-sm text-muted-foreground mt-1">
+              Unlimited paystubs, all templates, priority support
+            </p>
+          </div>
+          <Button variant="outline" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
+            Upgrade to Pro
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+);
+
+/* ---------- Download Section (after payment) ---------- */
+interface DownloadSectionProps {
+  isDownloading: boolean;
+  onDownload: (format: "pdf" | "png" | "xlsx") => void;
+}
+
+const DownloadSection = ({ isDownloading, onDownload }: DownloadSectionProps) => (
+  <div className="space-y-6">
+    {/* Success Banner */}
+    <Card className="border-accent bg-accent/5">
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-accent rounded-full flex items-center justify-center">
+            <CheckCircle className="w-6 h-6 text-accent-foreground" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">Payment Successful!</p>
+            <p className="text-sm text-muted-foreground">
+              Your account has been created. Choose your download format below.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+
+    {/* Download Options */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* PDF */}
+      <Card className="border-2 hover:border-primary/50 transition-colors">
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center mb-2">
+            <FileText className="w-6 h-6 text-destructive" />
+          </div>
+          <CardTitle className="text-lg">PDF Document</CardTitle>
+          <CardDescription>Professional format for printing</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            className="w-full"
+            onClick={() => onDownload("pdf")}
+            disabled={isDownloading}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download PDF
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* PNG */}
+      <Card className="border-2 hover:border-primary/50 transition-colors">
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-2">
+            <Image className="w-6 h-6 text-accent" />
+          </div>
+          <CardTitle className="text-lg">PNG Image</CardTitle>
+          <CardDescription>High-quality image format</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            className="w-full"
+            onClick={() => onDownload("png")}
+            disabled={isDownloading}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download PNG
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Excel */}
+      <Card className="border-2 hover:border-primary/50 transition-colors">
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-2">
+            <FileSpreadsheet className="w-6 h-6 text-primary" />
+          </div>
+          <CardTitle className="text-lg">Excel File</CardTitle>
+          <CardDescription>Spreadsheet for records</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            className="w-full"
+            onClick={() => onDownload("xlsx")}
+            disabled={isDownloading}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download Excel
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+);
 
 export default StepDownload;

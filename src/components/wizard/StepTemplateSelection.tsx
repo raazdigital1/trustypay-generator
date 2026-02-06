@@ -29,22 +29,71 @@ const templates: Template[] = [
     id: "corporate",
     name: "Corporate Executive",
     description: "Premium corporate design for executive-level employees",
-    isPremium: true,
+    isPremium: false,
     tags: ["corporate", "finance"],
   },
   {
     id: "healthcare",
     name: "Healthcare Standard",
     description: "Specialized template for healthcare industry",
-    isPremium: true,
+    isPremium: false,
     tags: ["healthcare", "medical"],
   },
   {
     id: "construction",
     name: "Construction & Trade",
     description: "Designed for construction and trade industries",
-    isPremium: true,
+    isPremium: false,
     tags: ["construction", "trade"],
+  },
+  {
+    id: "retail",
+    name: "Retail & Hospitality",
+    description: "Perfect for retail stores, restaurants and hotels",
+    isPremium: false,
+    tags: ["retail", "hospitality"],
+  },
+  {
+    id: "education",
+    name: "Education & Academic",
+    description: "Tailored for schools, universities and education staff",
+    isPremium: false,
+    tags: ["education", "academic"],
+  },
+  {
+    id: "government",
+    name: "Government & Public",
+    description: "Formal layout for government and public sector roles",
+    isPremium: false,
+    tags: ["government", "public"],
+  },
+  {
+    id: "tech",
+    name: "Tech Startup",
+    description: "Modern layout with stock options and equity sections",
+    isPremium: false,
+    tags: ["tech", "startup"],
+  },
+  {
+    id: "freelance",
+    name: "Freelancer & Contractor",
+    description: "Simplified format for independent contractors",
+    isPremium: false,
+    tags: ["freelance", "contractor"],
+  },
+  {
+    id: "manufacturing",
+    name: "Manufacturing & Logistics",
+    description: "Includes shift differentials and overtime breakdown",
+    isPremium: false,
+    tags: ["manufacturing", "logistics"],
+  },
+  {
+    id: "nonprofit",
+    name: "Non-Profit Organization",
+    description: "Clean template designed for non-profit organizations",
+    isPremium: false,
+    tags: ["nonprofit", "charity"],
   },
 ];
 
@@ -64,8 +113,7 @@ const StepTemplateSelection = ({
           Choose Your Template
         </h2>
         <p className="text-muted-foreground">
-          Select a professional template for your paystub. Premium templates
-          require a Pro subscription.
+          Select a professional template for your paystub
         </p>
       </div>
 
