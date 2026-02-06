@@ -1,13 +1,16 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Edit, Eye } from "lucide-react";
 import { PaystubData } from "@/types/paystub";
 
 interface StepPreviewProps {
   data: PaystubData;
+  onEditStep?: (step: number) => void;
 }
 
-const StepPreview = ({ data }: StepPreviewProps) => {
+const StepPreview = ({ data, onEditStep }: StepPreviewProps) => {
   // Calculate totals
   const regularPay = data.earnings.isHourly
     ? data.earnings.regularHours * data.earnings.hourlyRate
@@ -50,13 +53,34 @@ const StepPreview = ({ data }: StepPreviewProps) => {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="text-center mb-8">
+        <div className="mx-auto w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+          <Eye className="w-7 h-7 text-primary" />
+        </div>
         <h2 className="text-2xl font-bold text-foreground mb-2">
           Preview Your Paystub
         </h2>
         <p className="text-muted-foreground">
-          Review the information before downloading
+          Review the information below. Click edit to go back and make changes.
         </p>
       </div>
+
+      {/* Edit Buttons */}
+      {onEditStep && (
+        <div className="flex flex-wrap gap-2 mb-6 justify-center">
+          <Button variant="outline" size="sm" onClick={() => onEditStep(2)}>
+            <Edit className="w-3 h-3 mr-1" /> Employer
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onEditStep(3)}>
+            <Edit className="w-3 h-3 mr-1" /> Employee
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onEditStep(4)}>
+            <Edit className="w-3 h-3 mr-1" /> Earnings
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onEditStep(5)}>
+            <Edit className="w-3 h-3 mr-1" /> Pay Period
+          </Button>
+        </div>
+      )}
 
       {/* Paystub Preview Card */}
       <Card className="border-2 border-border shadow-elegant overflow-hidden">
@@ -259,7 +283,7 @@ const StepPreview = ({ data }: StepPreviewProps) => {
 
           {/* Watermark Notice */}
           <div className="text-center text-sm text-muted-foreground pt-4">
-            <p>This is a preview. Free accounts receive watermarked documents.</p>
+            <p>This is a preview. The final document will be watermark-free after payment.</p>
           </div>
         </CardContent>
       </Card>
