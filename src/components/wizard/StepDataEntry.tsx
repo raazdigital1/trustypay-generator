@@ -27,22 +27,33 @@ interface StepDataEntryProps {
 const StepDataEntry = ({ data, onUpdateData }: StepDataEntryProps) => {
   const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
   const [selectedTaxRate, setSelectedTaxRate] = useState<TaxRate | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Fetch tax rates
   useEffect(() => {
     const fetchTaxRates = async () => {
-      const { data: rates } = await supabase
-        .from("tax_rates")
-        .select("*")
-        .order("state_name");
-      if (rates) {
-        setTaxRates(rates);
-        const currentRate = rates.find((r) => r.state_code === data.stateCode);
-        if (currentRate) setSelectedTaxRate(currentRate);
+      try {
+        const { data: rates, error } = await supabase
+          .from("tax_rates")
+          .select("*")
+          .order("state_name");
+        if (error) {
+          console.error("Error fetching tax rates:", error);
+          setLoadError("Could not load tax rates. You can still fill in the details manually.");
+          return;
+        }
+        if (rates && rates.length > 0) {
+          setTaxRates(rates);
+          const currentRate = rates.find((r) => r.state_code === data.stateCode);
+          if (currentRate) setSelectedTaxRate(currentRate);
+        }
+      } catch (err) {
+        console.error("Tax rates fetch failed:", err);
+        setLoadError("Could not load tax rates. You can still fill in the details manually.");
       }
     };
     fetchTaxRates();
-  }, [data.stateCode]);
+  }, []);
 
   // Auto-calculate taxes when earnings change
   useEffect(() => {
@@ -97,6 +108,12 @@ const StepDataEntry = ({ data, onUpdateData }: StepDataEntryProps) => {
           Fill in the employer, employee, and earnings information
         </p>
       </div>
+
+      {loadError && (
+        <div className="mb-4 p-3 bg-warning/10 border border-warning/30 rounded-lg text-sm text-warning">
+          {loadError}
+        </div>
+      )}
 
       <Tabs defaultValue="employer" className="space-y-6">
         <TabsList className="grid grid-cols-4 w-full">
