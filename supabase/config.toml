@@ -1,1 +1,4 @@
 project_id = "jkdglhiolubrqyvzisir"
+
+[functions.generate-paystub]
+verify_jwt = false
