@@ -7,15 +7,20 @@ import { Switch } from "@/components/ui/switch";
 import { DollarSign, Calculator } from "lucide-react";
 import { PaystubData } from "@/types/paystub";
 import { TaxRate } from "@/hooks/useTaxRates";
+import { StepErrors } from "@/hooks/useWizardValidation";
 
 interface StepEarningsProps {
   data: PaystubData;
   onUpdateData: (data: Partial<PaystubData>) => void;
   taxRates: TaxRate[];
   loadError: string | null;
+  errors?: StepErrors;
 }
 
-const StepEarnings = ({ data, onUpdateData, taxRates, loadError }: StepEarningsProps) => {
+const FieldError = ({ message }: { message?: string }) =>
+  message ? <p className="text-sm text-destructive">{message}</p> : null;
+
+const StepEarnings = ({ data, onUpdateData, taxRates, loadError, errors = {} }: StepEarningsProps) => {
   const [selectedTaxRate, setSelectedTaxRate] = useState<TaxRate | null>(null);
 
   useEffect(() => {
@@ -108,10 +113,11 @@ const StepEarnings = ({ data, onUpdateData, taxRates, loadError }: StepEarningsP
             {data.earnings.isHourly ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Regular Hours</Label>
+                  <Label>Regular Hours *</Label>
                   <Input
                     type="number"
                     value={data.earnings.regularHours}
+                    className={errors.regularHours ? "border-destructive" : ""}
                     onChange={(e) =>
                       onUpdateData({
                         earnings: {
@@ -121,13 +127,15 @@ const StepEarnings = ({ data, onUpdateData, taxRates, loadError }: StepEarningsP
                       })
                     }
                   />
+                  <FieldError message={errors.regularHours} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Hourly Rate ($)</Label>
+                  <Label>Hourly Rate ($) *</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={data.earnings.hourlyRate}
+                    className={errors.hourlyRate ? "border-destructive" : ""}
                     onChange={(e) =>
                       onUpdateData({
                         earnings: {
@@ -138,6 +146,7 @@ const StepEarnings = ({ data, onUpdateData, taxRates, loadError }: StepEarningsP
                       })
                     }
                   />
+                  <FieldError message={errors.hourlyRate} />
                 </div>
                 <div className="space-y-2">
                   <Label>Overtime Hours</Label>
@@ -166,11 +175,12 @@ const StepEarnings = ({ data, onUpdateData, taxRates, loadError }: StepEarningsP
               </div>
             ) : (
               <div className="space-y-2">
-                <Label>Salary Amount (per pay period)</Label>
+                <Label>Salary Amount (per pay period) *</Label>
                 <Input
                   type="number"
                   step="0.01"
                   value={data.earnings.salaryAmount}
+                  className={errors.salaryAmount ? "border-destructive" : ""}
                   onChange={(e) =>
                     onUpdateData({
                       earnings: {
@@ -180,6 +190,7 @@ const StepEarnings = ({ data, onUpdateData, taxRates, loadError }: StepEarningsP
                     })
                   }
                 />
+                <FieldError message={errors.salaryAmount} />
               </div>
             )}
 

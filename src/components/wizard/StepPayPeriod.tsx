@@ -5,13 +5,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "lucide-react";
 import { PaystubData } from "@/types/paystub";
+import { StepErrors } from "@/hooks/useWizardValidation";
 
 interface StepPayPeriodProps {
   data: PaystubData;
   onUpdateData: (data: Partial<PaystubData>) => void;
+  errors?: StepErrors;
 }
 
-const StepPayPeriod = ({ data, onUpdateData }: StepPayPeriodProps) => {
+const FieldError = ({ message }: { message?: string }) =>
+  message ? <p className="text-sm text-destructive">{message}</p> : null;
+
+const StepPayPeriod = ({ data, onUpdateData, errors = {} }: StepPayPeriodProps) => {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="text-center mb-8">
@@ -52,40 +57,46 @@ const StepPayPeriod = ({ data, onUpdateData }: StepPayPeriodProps) => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Period Start</Label>
+              <Label>Period Start *</Label>
               <Input
                 type="date"
                 value={data.payPeriod.periodStart}
+                className={errors.periodStart ? "border-destructive" : ""}
                 onChange={(e) =>
                   onUpdateData({
                     payPeriod: { ...data.payPeriod, periodStart: e.target.value },
                   })
                 }
               />
+              <FieldError message={errors.periodStart} />
             </div>
             <div className="space-y-2">
-              <Label>Period End</Label>
+              <Label>Period End *</Label>
               <Input
                 type="date"
                 value={data.payPeriod.periodEnd}
+                className={errors.periodEnd ? "border-destructive" : ""}
                 onChange={(e) =>
                   onUpdateData({
                     payPeriod: { ...data.payPeriod, periodEnd: e.target.value },
                   })
                 }
               />
+              <FieldError message={errors.periodEnd} />
             </div>
             <div className="space-y-2">
-              <Label>Pay Date</Label>
+              <Label>Pay Date *</Label>
               <Input
                 type="date"
                 value={data.payPeriod.payDate}
+                className={errors.payDate ? "border-destructive" : ""}
                 onChange={(e) =>
                   onUpdateData({
                     payPeriod: { ...data.payPeriod, payDate: e.target.value },
                   })
                 }
               />
+              <FieldError message={errors.payDate} />
             </div>
           </div>
 

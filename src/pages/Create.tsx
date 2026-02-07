@@ -12,6 +12,8 @@ import StepPreview from "@/components/wizard/StepPreview";
 import StepDownload from "@/components/wizard/StepDownload";
 import { PaystubData, defaultPaystubData } from "@/types/paystub";
 import { useTaxRates } from "@/hooks/useTaxRates";
+import { validateStep, StepErrors } from "@/hooks/useWizardValidation";
+import { toast } from "@/hooks/use-toast";
 
 const steps = [
   { id: 1, name: "Template" },
@@ -26,11 +28,23 @@ const steps = [
 const Create = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [paystubData, setPaystubData] = useState<PaystubData>(defaultPaystubData);
+  const [stepErrors, setStepErrors] = useState<StepErrors>({});
   const { taxRates, loadError } = useTaxRates();
 
   const progress = (currentStep / steps.length) * 100;
 
   const handleNext = () => {
+    const errors = validateStep(currentStep, paystubData);
+    if (Object.keys(errors).length > 0) {
+      setStepErrors(errors);
+      toast({
+        title: "Please fix the errors",
+        description: "Fill in all required fields before proceeding.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setStepErrors({});
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     }
@@ -38,16 +52,34 @@ const Create = () => {
 
   const handleBack = () => {
     if (currentStep > 1) {
+      setStepErrors({});
       setCurrentStep(currentStep - 1);
     }
   };
 
   const goToStep = (step: number) => {
+    setStepErrors({});
     setCurrentStep(step);
   };
 
   const updatePaystubData = (data: Partial<PaystubData>) => {
     setPaystubData((prev) => ({ ...prev, ...data }));
+    // Clear errors for fields being updated
+    if (Object.keys(stepErrors).length > 0) {
+      const newErrors = { ...stepErrors };
+      Object.keys(data).forEach((key) => {
+        const val = data[key as keyof PaystubData];
+        if (val && typeof val === 'object') {
+          const nested = val as unknown as Record<string, unknown>;
+          Object.keys(nested).forEach((nestedKey) => {
+            if (newErrors[nestedKey] && nested[nestedKey]) {
+              delete newErrors[nestedKey];
+            }
+          });
+        }
+      });
+      setStepErrors(newErrors);
+    }
   };
 
   const renderStep = () => {
@@ -65,6 +97,7 @@ const Create = () => {
             data={paystubData}
             onUpdateData={updatePaystubData}
             taxRates={taxRates}
+            errors={stepErrors}
           />
         );
       case 3:
@@ -73,6 +106,7 @@ const Create = () => {
             data={paystubData}
             onUpdateData={updatePaystubData}
             taxRates={taxRates}
+            errors={stepErrors}
           />
         );
       case 4:
@@ -82,6 +116,7 @@ const Create = () => {
             onUpdateData={updatePaystubData}
             taxRates={taxRates}
             loadError={loadError}
+            errors={stepErrors}
           />
         );
       case 5:
@@ -89,6 +124,7 @@ const Create = () => {
           <StepPayPeriod
             data={paystubData}
             onUpdateData={updatePaystubData}
+            errors={stepErrors}
           />
         );
       case 6:
