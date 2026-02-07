@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Mail } from "lucide-react";
+import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Mail, Loader2 } from "lucide-react";
 import { PaystubData } from "@/types/paystub";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface StepDownloadProps {
   data: PaystubData;
@@ -15,7 +17,7 @@ const StepDownload = ({ data }: StepDownloadProps) => {
   const [email, setEmail] = useState("");
   const [isPaying, setIsPaying] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
 
   const handlePayAndDownload = async () => {
     if (!email) return;
@@ -27,11 +29,56 @@ const StepDownload = ({ data }: StepDownloadProps) => {
   };
 
   const handleDownload = async (format: "pdf" | "png" | "xlsx") => {
-    setIsDownloading(true);
-    // TODO: Implement actual PDF generation via edge function
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsDownloading(false);
-    alert(`Download ${format.toUpperCase()} - Coming soon!`);
+    setIsDownloading(format);
+    try {
+      if (format === "pdf") {
+        const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
+          body: data,
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (error) throw error;
+
+        // funcData comes back as a Blob when Content-Type is not JSON
+        let blob: Blob;
+        if (funcData instanceof Blob) {
+          blob = funcData;
+        } else if (funcData instanceof ArrayBuffer) {
+          blob = new Blob([funcData], { type: "application/pdf" });
+        } else {
+          // If for some reason it's returned as something else, try to handle
+          throw new Error("Unexpected response format");
+        }
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `paystub_${data.employee.firstName}_${data.employee.lastName}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast({
+          title: "PDF Downloaded!",
+          description: "Your paystub has been downloaded successfully.",
+        });
+      } else {
+        toast({
+          title: `${format.toUpperCase()} format`,
+          description: "This format will be available soon!",
+        });
+      }
+    } catch (err) {
+      console.error("Download error:", err);
+      toast({
+        title: "Download Failed",
+        description: "There was an error generating your paystub. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(null);
+    }
   };
 
   return (
@@ -101,7 +148,6 @@ interface PaymentSectionProps {
 
 const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProps) => (
   <div className="space-y-6">
-    {/* Pricing Card */}
     <Card className="border-primary/50 shadow-elegant">
       <CardHeader className="text-center pb-4">
         <div className="mx-auto w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4">
@@ -113,13 +159,11 @@ const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProp
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Price Display */}
         <div className="text-center bg-muted/50 rounded-lg p-6">
           <div className="text-4xl font-bold text-foreground mb-1">$7.99</div>
           <p className="text-sm text-muted-foreground">per paystub</p>
         </div>
 
-        {/* Included Features */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm">
             <CheckCircle className="w-4 h-4 text-accent" />
@@ -139,7 +183,6 @@ const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProp
           </div>
         </div>
 
-        {/* Email + Pay */}
         <div className="space-y-4 pt-2">
           <div className="space-y-2">
             <Label htmlFor="email" className="flex items-center gap-1.5">
@@ -165,7 +208,7 @@ const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProp
           >
             {isPaying ? (
               <span className="flex items-center gap-2">
-                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Processing Payment...
               </span>
             ) : (
@@ -184,7 +227,6 @@ const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProp
       </CardContent>
     </Card>
 
-    {/* Pro Subscription Upsell */}
     <Card className="border-accent/30 bg-accent/5">
       <CardContent className="p-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
@@ -210,13 +252,12 @@ const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProp
 
 /* ---------- Download Section (after payment) ---------- */
 interface DownloadSectionProps {
-  isDownloading: boolean;
+  isDownloading: string | null;
   onDownload: (format: "pdf" | "png" | "xlsx") => void;
 }
 
 const DownloadSection = ({ isDownloading, onDownload }: DownloadSectionProps) => (
   <div className="space-y-6">
-    {/* Success Banner */}
     <Card className="border-accent bg-accent/5">
       <CardContent className="p-6">
         <div className="flex items-center gap-3">
@@ -233,9 +274,7 @@ const DownloadSection = ({ isDownloading, onDownload }: DownloadSectionProps) =>
       </CardContent>
     </Card>
 
-    {/* Download Options */}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* PDF */}
       <Card className="border-2 hover:border-primary/50 transition-colors">
         <CardHeader className="text-center pb-2">
           <div className="mx-auto w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center mb-2">
@@ -248,15 +287,23 @@ const DownloadSection = ({ isDownloading, onDownload }: DownloadSectionProps) =>
           <Button
             className="w-full"
             onClick={() => onDownload("pdf")}
-            disabled={isDownloading}
+            disabled={isDownloading !== null}
           >
-            <Download className="w-4 h-4 mr-2" />
-            Download PDF
+            {isDownloading === "pdf" ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </span>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
 
-      {/* PNG */}
       <Card className="border-2 hover:border-primary/50 transition-colors">
         <CardHeader className="text-center pb-2">
           <div className="mx-auto w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-2">
@@ -269,15 +316,23 @@ const DownloadSection = ({ isDownloading, onDownload }: DownloadSectionProps) =>
           <Button
             className="w-full"
             onClick={() => onDownload("png")}
-            disabled={isDownloading}
+            disabled={isDownloading !== null}
           >
-            <Download className="w-4 h-4 mr-2" />
-            Download PNG
+            {isDownloading === "png" ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </span>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Download PNG
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
 
-      {/* Excel */}
       <Card className="border-2 hover:border-primary/50 transition-colors">
         <CardHeader className="text-center pb-2">
           <div className="mx-auto w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-2">
@@ -290,10 +345,19 @@ const DownloadSection = ({ isDownloading, onDownload }: DownloadSectionProps) =>
           <Button
             className="w-full"
             onClick={() => onDownload("xlsx")}
-            disabled={isDownloading}
+            disabled={isDownloading !== null}
           >
-            <Download className="w-4 h-4 mr-2" />
-            Download Excel
+            {isDownloading === "xlsx" ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </span>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Download Excel
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
