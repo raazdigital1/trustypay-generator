@@ -293,20 +293,68 @@ const StepEarnings = ({ data, onUpdateData, taxRates, loadError, errors = {} }: 
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label>Federal Tax</Label>
-                <Input type="number" value={data.deductions.federalTax.toFixed(2)} disabled />
+                <Label>Federal Tax ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={data.deductions.federalTax}
+                  onChange={(e) =>
+                    onUpdateData({
+                      deductions: {
+                        ...data.deductions,
+                        federalTax: parseFloat(e.target.value) || 0,
+                      },
+                    })
+                  }
+                />
               </div>
               <div className="space-y-2">
-                <Label>State Tax</Label>
-                <Input type="number" value={data.deductions.stateTax.toFixed(2)} disabled />
+                <Label>State Tax ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={data.deductions.stateTax}
+                  onChange={(e) =>
+                    onUpdateData({
+                      deductions: {
+                        ...data.deductions,
+                        stateTax: parseFloat(e.target.value) || 0,
+                      },
+                    })
+                  }
+                />
               </div>
               <div className="space-y-2">
-                <Label>Social Security</Label>
-                <Input type="number" value={data.deductions.socialSecurity.toFixed(2)} disabled />
+                <Label>Social Security ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={data.deductions.socialSecurity}
+                  onChange={(e) =>
+                    onUpdateData({
+                      deductions: {
+                        ...data.deductions,
+                        socialSecurity: parseFloat(e.target.value) || 0,
+                      },
+                    })
+                  }
+                />
               </div>
               <div className="space-y-2">
-                <Label>Medicare</Label>
-                <Input type="number" value={data.deductions.medicare.toFixed(2)} disabled />
+                <Label>Medicare ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={data.deductions.medicare}
+                  onChange={(e) =>
+                    onUpdateData({
+                      deductions: {
+                        ...data.deductions,
+                        medicare: parseFloat(e.target.value) || 0,
+                      },
+                    })
+                  }
+                />
               </div>
             </div>
 
