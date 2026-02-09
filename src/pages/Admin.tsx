@@ -8,6 +8,7 @@ import AdminBlogPosts from "@/components/admin/AdminBlogPosts";
 import AdminTaxRates from "@/components/admin/AdminTaxRates";
 import AdminPaystubs from "@/components/admin/AdminPaystubs";
 import AdminTransactions from "@/components/admin/AdminTransactions";
+import AdminFraudFlags from "@/components/admin/AdminFraudFlags";
 import AdminAuditLogs from "@/components/admin/AdminAuditLogs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect } from "react";
@@ -50,6 +51,8 @@ const Admin = () => {
         return <AdminPaystubs />;
       case "transactions":
         return <AdminTransactions />;
+      case "fraud-flags":
+        return <AdminFraudFlags />;
       case "audit-logs":
         return <AdminAuditLogs />;
       default:
