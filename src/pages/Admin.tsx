@@ -9,6 +9,7 @@ import AdminTaxRates from "@/components/admin/AdminTaxRates";
 import AdminPaystubs from "@/components/admin/AdminPaystubs";
 import AdminTransactions from "@/components/admin/AdminTransactions";
 import AdminFraudFlags from "@/components/admin/AdminFraudFlags";
+import AdminBilling from "@/components/admin/AdminBilling";
 import AdminAuditLogs from "@/components/admin/AdminAuditLogs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect } from "react";
@@ -43,6 +44,8 @@ const Admin = () => {
         return <AdminOverview />;
       case "users":
         return <AdminUsers />;
+      case "billing":
+        return <AdminBilling />;
       case "blog":
         return <AdminBlogPosts />;
       case "tax-rates":
