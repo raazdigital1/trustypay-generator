@@ -19,8 +19,8 @@ const steps = [
   { id: 1, name: "Template" },
   { id: 2, name: "Employer" },
   { id: 3, name: "Employee" },
-  { id: 4, name: "Earnings" },
-  { id: 5, name: "Pay Period" },
+  { id: 4, name: "Pay Period" },
+  { id: 5, name: "Earnings" },
   { id: 6, name: "Preview" },
   { id: 7, name: "Download" },
 ];
@@ -111,19 +111,19 @@ const Create = () => {
         );
       case 4:
         return (
-          <StepEarnings
+          <StepPayPeriod
             data={paystubData}
             onUpdateData={updatePaystubData}
-            taxRates={taxRates}
-            loadError={loadError}
             errors={stepErrors}
           />
         );
       case 5:
         return (
-          <StepPayPeriod
+          <StepEarnings
             data={paystubData}
             onUpdateData={updatePaystubData}
+            taxRates={taxRates}
+            loadError={loadError}
             errors={stepErrors}
           />
         );

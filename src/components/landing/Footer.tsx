@@ -11,15 +11,11 @@ const Footer = () => {
     ],
     resources: [
       { name: "Blog", href: "/blog" },
-      { name: "State Tax Guides", href: "/resources/state-guides" },
-      { name: "Calculator", href: "/calculator" },
       { name: "FAQ", href: "/faq" },
     ],
     company: [
       { name: "About Us", href: "/about" },
       { name: "Contact", href: "/contact" },
-      { name: "Careers", href: "/careers" },
-      { name: "Press", href: "/press" },
     ],
     legal: [
       { name: "Privacy Policy", href: "/privacy" },
