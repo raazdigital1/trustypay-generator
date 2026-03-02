@@ -1,20 +1,75 @@
-import { useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Plus, History, Settings, LogOut, CreditCard, Users } from "lucide-react";
+import { FileText, Plus, History, Settings, LogOut, CreditCard, Users, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+
+const PRO_PRICE_ID = "price_1T6P0BGf3K1hj4vvDSuYmNEv";
 
 const Dashboard = () => {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [subscription, setSubscription] = useState<{ subscribed: boolean; subscription_end?: string } | null>(null);
+  const [checkingOut, setCheckingOut] = useState(false);
+
+  const checkSubscription = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("check-subscription");
+      if (error) throw error;
+      setSubscription(data);
+    } catch {
+      setSubscription({ subscribed: false });
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/login");
     }
-  }, [user, loading, navigate]);
+    if (user) {
+      checkSubscription();
+    }
+  }, [user, loading, navigate, checkSubscription]);
+
+  useEffect(() => {
+    const checkout = searchParams.get("checkout");
+    if (checkout === "success") {
+      toast({ title: "Payment successful!", description: "Your Pro subscription is now active." });
+      checkSubscription();
+    } else if (checkout === "canceled") {
+      toast({ title: "Checkout canceled", variant: "destructive" });
+    }
+  }, [searchParams, checkSubscription]);
+
+  const handleUpgrade = async () => {
+    setCheckingOut(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: { priceId: PRO_PRICE_ID },
+      });
+      if (error) throw error;
+      if (data?.url) window.open(data.url, "_blank");
+    } catch (err: any) {
+      toast({ title: "Checkout failed", description: err.message, variant: "destructive" });
+    } finally {
+      setCheckingOut(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal");
+      if (error) throw error;
+      if (data?.url) window.open(data.url, "_blank");
+    } catch (err: any) {
+      toast({ title: "Could not open billing portal", description: err.message, variant: "destructive" });
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -37,6 +92,8 @@ const Dashboard = () => {
   }
 
   if (!user) return null;
+
+  const isPro = subscription?.subscribed === true;
 
   return (
     <div className="min-h-screen bg-background">
@@ -134,8 +191,8 @@ const Dashboard = () => {
                   </CardTitle>
                   <CardDescription>Manage your plan and billing</CardDescription>
                 </div>
-                <span className="px-3 py-1 bg-secondary text-secondary-foreground text-sm rounded-full">
-                  Free Plan
+                <span className={`px-3 py-1 text-sm rounded-full ${isPro ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+                  {isPro ? "Pro Plan" : "Free Plan"}
                 </span>
               </div>
             </CardHeader>
@@ -143,16 +200,29 @@ const Dashboard = () => {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Monthly limit</span>
-                  <span className="font-medium">1 paystub</span>
+                  <span className="font-medium">{isPro ? "Unlimited" : "1 paystub"}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Used this month</span>
-                  <span className="font-medium">0</span>
-                </div>
+                {isPro && subscription?.subscription_end && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Renews on</span>
+                    <span className="font-medium">{new Date(subscription.subscription_end).toLocaleDateString()}</span>
+                  </div>
+                )}
               </div>
-              <Button className="w-full mt-4 bg-gradient-primary hover:opacity-90">
-                Upgrade to Pro
-              </Button>
+              {isPro ? (
+                <Button variant="outline" className="w-full mt-4" onClick={handleManageSubscription}>
+                  Manage Subscription
+                </Button>
+              ) : (
+                <Button
+                  className="w-full mt-4 bg-gradient-primary hover:opacity-90"
+                  onClick={handleUpgrade}
+                  disabled={checkingOut}
+                >
+                  {checkingOut && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Upgrade to Pro — $49.99/mo
+                </Button>
+              )}
             </CardContent>
           </Card>
 
