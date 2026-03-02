@@ -39,6 +39,7 @@ const emptyPost = {
   is_published: false,
   seo_title: "",
   seo_description: "",
+  featured_image_url: "",
 };
 
 const AdminBlogPosts = () => {
@@ -96,6 +97,7 @@ const AdminBlogPosts = () => {
         published_at: editingPost.is_published ? new Date().toISOString() : null,
         seo_title: editingPost.seo_title || null,
         seo_description: editingPost.seo_description || null,
+        featured_image_url: (editingPost as any).featured_image_url || null,
       };
 
       if (editingPost.id) {
@@ -272,6 +274,15 @@ const AdminBlogPosts = () => {
                   value={editingPost.content || ""}
                   onChange={(e) => updateField("content", e.target.value)}
                   rows={10}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Featured Image URL</Label>
+                <Input
+                  value={(editingPost as any).featured_image_url || ""}
+                  onChange={(e) => updateField("featured_image_url", e.target.value)}
+                  placeholder="https://example.com/image.jpg"
                 />
               </div>
 
