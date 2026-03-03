@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { loadPaystubFromDb } from "@/lib/paystub-db";
+import { svgToPng } from "@/lib/svg-to-png";
 
 const PRO_PRICE_ID = "price_1T6P0BGf3K1hj4vvDSuYmNEv";
 
@@ -186,33 +187,43 @@ const Dashboard = () => {
     }
   };
 
-  const handleDownloadPaystub = async (paystubId: string) => {
+  const handleDownloadPaystub = async (paystubId: string, format: "pdf" | "png" = "pdf") => {
     setDownloadingId(paystubId);
     try {
       const paystubData = await loadPaystubFromDb(paystubId);
       if (!paystubData) throw new Error("Could not load paystub data");
 
       const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
-        body: { ...paystubData, format: "pdf", watermark: false },
+        body: { ...paystubData, format: format === "png" ? "png" : "pdf", watermark: false },
         headers: { "Content-Type": "application/json" },
       });
       if (error) throw error;
 
       let blob: Blob;
-      if (funcData instanceof Blob) blob = funcData;
-      else if (funcData instanceof ArrayBuffer) blob = new Blob([funcData], { type: "application/pdf" });
-      else throw new Error("Unexpected response");
+      const fileName = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}`;
+
+      if (format === "png") {
+        let svgText: string;
+        if (funcData instanceof Blob) svgText = await funcData.text();
+        else if (typeof funcData === "string") svgText = funcData;
+        else throw new Error("Unexpected SVG response");
+        blob = await svgToPng(svgText);
+      } else {
+        if (funcData instanceof Blob) blob = funcData;
+        else if (funcData instanceof ArrayBuffer) blob = new Blob([funcData], { type: "application/pdf" });
+        else throw new Error("Unexpected response");
+      }
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}.pdf`;
+      a.download = `${fileName}.${format}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast({ title: "PDF Downloaded!" });
+      toast({ title: `${format.toUpperCase()} Downloaded!` });
     } catch (err) {
       console.error(err);
       toast({ title: "Download failed", description: "Please try again.", variant: "destructive" });
@@ -339,7 +350,7 @@ const Dashboard = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -349,19 +360,30 @@ const Dashboard = () => {
                             <Pencil className="w-4 h-4" />
                           </Button>
                           {isPaid && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDownloadPaystub(ps.id)}
-                              disabled={downloadingId === ps.id}
-                              title="Download PDF"
-                            >
-                              {downloadingId === ps.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Download className="w-4 h-4" />
-                              )}
-                            </Button>
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadPaystub(ps.id, "pdf")}
+                                disabled={downloadingId === ps.id}
+                                title="Download PDF"
+                              >
+                                {downloadingId === ps.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Download className="w-4 h-4" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadPaystub(ps.id, "png")}
+                                disabled={downloadingId === ps.id}
+                                title="Download PNG"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>

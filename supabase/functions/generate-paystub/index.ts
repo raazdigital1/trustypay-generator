@@ -793,23 +793,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (format === "png") {
-      const { Resvg, initWasm } = await import("npm:@aspect-dev/resvg-wasm@1.0.4");
-      const wasmUrl = "https://unpkg.com/@aspect-dev/resvg-wasm@1.0.4/index_bg.wasm";
-      const wasmResp = await fetch(wasmUrl);
-      await initWasm(wasmResp);
-
+    if (format === "png" || format === "svg") {
       const svg = buildSvg(data as PaystubRequest, watermark);
-      const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1632 } });
-      const rendered = resvg.render();
-      const pngBuffer = rendered.asPng();
-
-      return new Response(pngBuffer, {
+      return new Response(svg, {
         status: 200,
         headers: {
           ...corsHeaders,
-          "Content-Type": "image/png",
-          "Content-Disposition": `attachment; filename="paystub_${data.employee.firstName}_${data.employee.lastName}.png"`,
+          "Content-Type": "image/svg+xml",
+          "Content-Disposition": `attachment; filename="paystub_${data.employee.firstName}_${data.employee.lastName}.svg"`,
         },
       });
     }
