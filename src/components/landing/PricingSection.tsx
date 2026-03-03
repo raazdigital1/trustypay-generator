@@ -23,7 +23,7 @@ const PricingSection = () => {
     },
     {
       name: "Pro",
-      price: "$49.99",
+      price: "$29.99",
       period: "/month",
       description: "Best for businesses with employees",
       features: [
@@ -43,7 +43,7 @@ const PricingSection = () => {
     },
     {
       name: "Pay-Per-Use",
-      price: "$7.99",
+      price: "$4.99",
       period: "/paystub",
       description: "For occasional users",
       features: [

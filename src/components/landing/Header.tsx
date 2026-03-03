@@ -23,7 +23,7 @@ const Header = () => {
               <FileText className="w-6 h-6 text-primary-foreground" />
             </div>
             <span className="text-xl font-bold text-foreground">
-              Paystub<span className="text-primary">Pro</span>
+              PayStub<span className="text-primary">Wizard</span>
             </span>
           </Link>
 

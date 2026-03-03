@@ -80,8 +80,8 @@ const Privacy = () => {
               <h2 className="text-2xl font-semibold text-foreground mt-8 mb-4">7. Contact Us</h2>
               <p>
                 If you have questions about this Privacy Policy, please contact us at:{" "}
-                <a href="mailto:privacy@paystubpro.com" className="text-primary hover:underline">
-                  privacy@paystubpro.com
+                <a href="mailto:privacy@paystubwizard.com" className="text-primary hover:underline">
+                  privacy@paystubwizard.com
                 </a>
               </p>
             </section>

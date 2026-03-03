@@ -19,7 +19,7 @@ const About = () => {
         <section className="py-16 bg-gradient-to-br from-primary/5 to-accent/5">
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-              About PaystubPro
+              About PayStub Wizard
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               We're on a mission to make professional payroll documentation accessible
@@ -51,7 +51,7 @@ const About = () => {
             <h2 className="text-3xl font-bold text-foreground mb-6">Our Story</h2>
             <div className="prose prose-lg text-muted-foreground space-y-4">
               <p>
-                PaystubPro was founded in 2024 with a simple idea: creating professional
+                PayStub Wizard was founded in 2024 with a simple idea: creating professional
                 paystubs shouldn't require expensive payroll software or accounting expertise.
               </p>
               <p>
@@ -61,7 +61,7 @@ const About = () => {
                 didn't meet state-specific requirements.
               </p>
               <p>
-                Today, PaystubPro serves thousands of small businesses, freelancers,
+                Today, PayStub Wizard serves thousands of small businesses, freelancers,
                 and household employers across all 50 US states. Our platform automatically
                 calculates federal and state taxes, ensuring every paystub meets
                 compliance requirements.

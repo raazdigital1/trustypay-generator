@@ -152,7 +152,7 @@ const Create = () => {
                 <FileText className="w-5 h-5 text-primary-foreground" />
               </div>
               <span className="text-lg font-bold text-foreground">
-                Paystub<span className="text-primary">Pro</span>
+                PayStub<span className="text-primary">Wizard</span>
               </span>
             </Link>
 

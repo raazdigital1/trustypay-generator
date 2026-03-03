@@ -47,19 +47,22 @@ const ForgotPassword = () => {
     }
   };
 
+  const LogoBlock = () => (
+    <Link to="/" className="flex items-center justify-center gap-2 mb-8">
+      <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
+        <FileText className="w-6 h-6 text-primary-foreground" />
+      </div>
+      <span className="text-xl font-bold text-foreground">
+        PayStub<span className="text-primary">Wizard</span>
+      </span>
+    </Link>
+  );
+
   if (isSuccess) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-            <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <FileText className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold text-foreground">
-              Paystub<span className="text-primary">Pro</span>
-            </span>
-          </Link>
-
+          <LogoBlock />
           <Card className="border-border shadow-elegant">
             <CardHeader className="text-center">
               <div className="mx-auto w-12 h-12 bg-success/10 rounded-full flex items-center justify-center mb-4">
@@ -71,10 +74,7 @@ const ForgotPassword = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center text-sm text-muted-foreground">
-              <p>
-                Click the link in the email to reset your password. If you don't
-                see it, check your spam folder.
-              </p>
+              <p>Click the link in the email to reset your password. If you don't see it, check your spam folder.</p>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Link to="/login" className="w-full">
@@ -93,21 +93,11 @@ const ForgotPassword = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-            <FileText className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold text-foreground">
-            Paystub<span className="text-primary">Pro</span>
-          </span>
-        </Link>
-
+        <LogoBlock />
         <Card className="border-border shadow-elegant">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Reset Password</CardTitle>
-            <CardDescription>
-              Enter your email and we'll send you a reset link
-            </CardDescription>
+            <CardDescription>Enter your email and we'll send you a reset link</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">

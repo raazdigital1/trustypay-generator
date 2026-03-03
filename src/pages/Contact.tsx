@@ -100,7 +100,7 @@ const Contact = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">Email</h3>
-                    <p className="text-muted-foreground text-sm">support@paystubpro.com</p>
+                    <p className="text-muted-foreground text-sm">support@paystubwizard.com</p>
                   </div>
                 </CardContent>
               </Card>

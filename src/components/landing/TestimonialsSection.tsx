@@ -7,7 +7,7 @@ const TestimonialsSection = () => {
       role: "Small Business Owner",
       company: "Johnson's Cleaning Services",
       image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
-      content: "PaystubPro has been a game-changer for my cleaning business. I can create professional paystubs for my 12 employees in minutes. The automatic tax calculations save me hours every pay period.",
+      content: "PayStub Wizard has been a game-changer for my cleaning business. I can create professional paystubs for my 12 employees in minutes. The automatic tax calculations save me hours every pay period.",
       rating: 5,
     },
     {
@@ -15,7 +15,7 @@ const TestimonialsSection = () => {
       role: "Freelance Consultant",
       company: "Chen Consulting LLC",
       image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
-      content: "As a freelancer, I needed a simple way to generate paystubs for my rental applications and bank loans. PaystubPro makes it incredibly easy and the documents are always accepted.",
+      content: "As a freelancer, I needed a simple way to generate paystubs for my rental applications and bank loans. PayStub Wizard makes it incredibly easy and the documents are always accepted.",
       rating: 5,
     },
     {
@@ -23,7 +23,7 @@ const TestimonialsSection = () => {
       role: "HR Manager",
       company: "TechStart Inc.",
       image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
-      content: "We switched from manual calculations to PaystubPro and haven't looked back. The multi-state compliance feature is perfect for our remote team across 8 different states.",
+      content: "We switched from manual calculations to PayStub Wizard and haven't looked back. The multi-state compliance feature is perfect for our remote team across 8 different states.",
       rating: 5,
     },
     {
@@ -31,7 +31,7 @@ const TestimonialsSection = () => {
       role: "Household Employer",
       company: "Private Household",
       image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-      content: "Creating paystubs for our nanny and housekeeper used to be confusing. PaystubPro handles all the tax calculations automatically. Highly recommend for household employers!",
+      content: "Creating paystubs for our nanny and housekeeper used to be confusing. PayStub Wizard handles all the tax calculations automatically. Highly recommend for household employers!",
       rating: 5,
     },
     {
@@ -47,7 +47,7 @@ const TestimonialsSection = () => {
       role: "Contractor",
       company: "Kim Construction",
       image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face",
-      content: "I use PaystubPro for all my subcontractors. The ability to save profiles and duplicate paystubs makes weekly payroll a breeze. Worth every penny!",
+      content: "I use PayStub Wizard for all my subcontractors. The ability to save profiles and duplicate paystubs makes weekly payroll a breeze. Worth every penny!",
       rating: 5,
     },
   ];
@@ -65,7 +65,7 @@ const TestimonialsSection = () => {
             <span className="text-gradient-primary">50,000+ Businesses</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            See what our customers have to say about PaystubPro
+            See what our customers have to say about PayStub Wizard
           </p>
         </div>
 

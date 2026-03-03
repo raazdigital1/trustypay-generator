@@ -14,7 +14,7 @@ const CTASection = () => {
             Ready to Create Your First Paystub?
           </h2>
           <p className="text-xl text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-            Join over 50,000 businesses who trust PaystubPro for their payroll documentation needs. 
+            Join over 50,000 businesses who trust PayStub Wizard for their payroll documentation needs. 
             Start for free today.
           </p>
 
