@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Loader2, Tag, X } from "lucide-react";
+import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Loader2, Tag, X, Stamp } from "lucide-react";
 import { PaystubData } from "@/types/paystub";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -20,6 +20,7 @@ const StepDownload = ({ data }: StepDownloadProps) => {
   const [isPaying, setIsPaying] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [isFreeDownloading, setIsFreeDownloading] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -71,12 +72,16 @@ const StepDownload = ({ data }: StepDownloadProps) => {
     }
   };
 
-  const handleDownload = async (format: "pdf" | "png" | "xlsx") => {
-    setIsDownloading(format);
+  const handleDownload = async (format: "pdf" | "png" | "xlsx", watermark: boolean = false) => {
+    if (watermark) {
+      setIsFreeDownloading(true);
+    } else {
+      setIsDownloading(format);
+    }
     try {
       if (format === "pdf" || format === "png") {
         const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
-          body: { ...data, format },
+          body: { ...data, format, watermark },
           headers: { "Content-Type": "application/json" },
         });
 
@@ -92,18 +97,21 @@ const StepDownload = ({ data }: StepDownloadProps) => {
           throw new Error("Unexpected response format");
         }
 
+        const suffix = watermark ? "_sample" : "";
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `paystub_${data.employee.firstName}_${data.employee.lastName}.${format}`;
+        a.download = `paystub_${data.employee.firstName}_${data.employee.lastName}${suffix}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
         toast({
-          title: `${format.toUpperCase()} Downloaded!`,
-          description: "Your paystub has been downloaded successfully.",
+          title: watermark ? "Sample Downloaded!" : `${format.toUpperCase()} Downloaded!`,
+          description: watermark
+            ? "Your watermarked sample paystub has been downloaded."
+            : "Your paystub has been downloaded successfully.",
         });
       } else {
         toast({
@@ -120,6 +128,7 @@ const StepDownload = ({ data }: StepDownloadProps) => {
       });
     } finally {
       setIsDownloading(null);
+      setIsFreeDownloading(false);
     }
   };
 
@@ -147,11 +156,13 @@ const StepDownload = ({ data }: StepDownloadProps) => {
           setAppliedCoupon={setAppliedCoupon}
           couponError={couponError}
           setCouponError={setCouponError}
+          isFreeDownloading={isFreeDownloading}
+          onFreeDownload={() => handleDownload("pdf", true)}
         />
       ) : (
         <DownloadSection
           isDownloading={isDownloading}
-          onDownload={handleDownload}
+          onDownload={(format) => handleDownload(format)}
         />
       )}
 
@@ -196,11 +207,14 @@ interface PaymentSectionProps {
   setAppliedCoupon: (v: string | null) => void;
   couponError: string | null;
   setCouponError: (v: string | null) => void;
+  isFreeDownloading: boolean;
+  onFreeDownload: () => void;
 }
 
 const PaymentSection = ({
   isPaying, isAuthenticated, onPay,
   couponCode, setCouponCode, appliedCoupon, setAppliedCoupon, couponError, setCouponError,
+  isFreeDownloading, onFreeDownload,
 }: PaymentSectionProps) => {
   const handleApplyCoupon = () => {
     const code = couponCode.trim().toUpperCase();
@@ -333,6 +347,42 @@ const PaymentSection = ({
           </div>
           <Button variant="outline" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
             Upgrade to Pro
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+
+    {/* Free Watermarked Download */}
+    <Card className="border-muted">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+              <Stamp className="w-5 h-5 text-muted-foreground" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground">Free Sample — Watermarked PDF</h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                Download a preview copy with a "SAMPLE" watermark. No payment required.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            onClick={onFreeDownload}
+            disabled={isFreeDownloading}
+          >
+            {isFreeDownloading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </span>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Free Download
+              </>
+            )}
           </Button>
         </div>
       </CardContent>

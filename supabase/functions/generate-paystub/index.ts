@@ -125,7 +125,7 @@ function escPdf(text: string): string {
     .replace(/\)/g, "\\)");
 }
 
-function buildPdf(data: PaystubRequest): Uint8Array {
+function buildPdf(data: PaystubRequest, watermark: boolean = false): Uint8Array {
   const regularPay = data.earnings.isHourly
     ? data.earnings.regularHours * data.earnings.hourlyRate
     : data.earnings.salaryAmount;
@@ -492,6 +492,30 @@ function buildPdf(data: PaystubRequest): Uint8Array {
   setColor(0, 0, 0);
 
   // ─────────────────────────────────────────
+  // WATERMARK (if requested)
+  // ─────────────────────────────────────────
+  if (watermark) {
+    // Save graphics state
+    lines.push("q");
+    // Semi-transparent gray
+    lines.push("0.85 0.85 0.85 rg");
+    // Rotate 45 degrees, scale up, and position diagonally across page
+    const angle = 45 * Math.PI / 180;
+    const cos = Math.cos(angle).toFixed(4);
+    const sin = Math.sin(angle).toFixed(4);
+    // Position at center of page
+    lines.push(`${cos} ${sin} -${sin} ${cos} ${PW / 2 - 140} ${PH / 2 - 60} cm`);
+    lines.push(`BT /F2 72 Tf 0 0 Td (SAMPLE) Tj ET`);
+    lines.push("Q");
+    // Second watermark line
+    lines.push("q");
+    lines.push("0.85 0.85 0.85 rg");
+    lines.push(`${cos} ${sin} -${sin} ${cos} ${PW / 2 - 180} ${PH / 2 - 180} cm`);
+    lines.push(`BT /F2 36 Tf 0 0 Td (FOR PREVIEW ONLY) Tj ET`);
+    lines.push("Q");
+  }
+
+  // ─────────────────────────────────────────
   // BUILD PDF FILE
   // ─────────────────────────────────────────
   const contentStream = lines.join("\n");
@@ -543,7 +567,7 @@ function buildPdf(data: PaystubRequest): Uint8Array {
   return new TextEncoder().encode(pdf);
 }
 
-function buildSvg(data: PaystubRequest): string {
+function buildSvg(data: PaystubRequest, watermark: boolean = false): string {
   const regularPay = data.earnings.isHourly
     ? data.earnings.regularHours * data.earnings.hourlyRate
     : data.earnings.salaryAmount;
@@ -730,6 +754,14 @@ function buildSvg(data: PaystubRequest): string {
   parts.push(`<text x="${ML}" y="${footerY + 16}" fill="#8C9198" font-family="Helvetica,Arial,sans-serif" font-size="8">This is a computer-generated earnings statement.</text>`);
   parts.push(`<text x="${W - MR}" y="${footerY + 16}" fill="#8C9198" font-family="Helvetica,Arial,sans-serif" font-size="8" text-anchor="end">PayStub Wizard</text>`);
 
+  // Watermark overlay
+  if (watermark) {
+    parts.push(`<g opacity="0.15" transform="rotate(-45, ${W / 2}, ${H / 2})">`);
+    parts.push(`<text x="${W / 2}" y="${H / 2}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="90" font-weight="bold" text-anchor="middle" dominant-baseline="middle">SAMPLE</text>`);
+    parts.push(`<text x="${W / 2}" y="${H / 2 + 80}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="36" font-weight="bold" text-anchor="middle" dominant-baseline="middle">FOR PREVIEW ONLY</text>`);
+    parts.push(`</g>`);
+  }
+
   parts.push("</svg>");
   return parts.join("\n");
 }
@@ -749,6 +781,7 @@ Deno.serve(async (req: Request) => {
 
     const data = await req.json();
     const format = data.format || "pdf";
+    const watermark = data.watermark === true;
 
     if (!data.employer?.companyName || !data.employee?.firstName) {
       return new Response(
@@ -766,7 +799,7 @@ Deno.serve(async (req: Request) => {
       const wasmResp = await fetch(wasmUrl);
       await initWasm(wasmResp);
 
-      const svg = buildSvg(data as PaystubRequest);
+      const svg = buildSvg(data as PaystubRequest, watermark);
       const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1632 } });
       const rendered = resvg.render();
       const pngBuffer = rendered.asPng();
@@ -782,7 +815,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Default: PDF
-    const pdfBytes = buildPdf(data as PaystubRequest);
+    const pdfBytes = buildPdf(data as PaystubRequest, watermark);
 
     return new Response(pdfBytes, {
       status: 200,
