@@ -3,13 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Loader2, Tag, X, Stamp } from "lucide-react";
+import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Loader2, Tag, X, Stamp, Mail } from "lucide-react";
 import { PaystubData } from "@/types/paystub";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSearchParams } from "react-router-dom";
-import { savePaystubToDb } from "@/lib/paystub-db";
 
 interface StepDownloadProps {
   data: PaystubData;
@@ -25,6 +24,8 @@ const StepDownload = ({ data }: StepDownloadProps) => {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   useEffect(() => {
     if (searchParams.get("payment") === "success") {
@@ -32,29 +33,44 @@ const StepDownload = ({ data }: StepDownloadProps) => {
     }
   }, [searchParams]);
 
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email) && email.length <= 255;
+  };
+
   const handlePayAndDownload = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in or create an account to purchase a paystub.",
-        variant: "destructive",
-      });
+    const email = user?.email || guestEmail.trim();
+
+    if (!email) {
+      setEmailError("Please enter your email address");
       return;
     }
+    if (!validateEmail(email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+    setEmailError(null);
 
     setIsPaying(true);
     try {
-      // Save paystub to database first
-      const paystubId = await savePaystubToDb(data, user.id);
-
+      // For guests, send paystub data to be saved server-side
+      // For authenticated users, also send data server-side to avoid client-side DB save issues
       const { data: funcData, error } = await supabase.functions.invoke("create-payment", {
-        body: { coupon_code: appliedCoupon || undefined, paystub_id: paystubId },
+        body: {
+          email: user ? undefined : email,
+          paystub_data: data,
+          coupon_code: appliedCoupon || undefined,
+        },
       });
 
       if (error) throw error;
       if (funcData?.error) {
-        setCouponError(funcData.error);
-        setAppliedCoupon(null);
+        if (funcData.error.includes("coupon") || funcData.error.includes("Coupon")) {
+          setCouponError(funcData.error);
+          setAppliedCoupon(null);
+        } else {
+          toast({ title: "Error", description: funcData.error, variant: "destructive" });
+        }
         return;
       }
       if (funcData?.url) {
@@ -151,6 +167,11 @@ const StepDownload = ({ data }: StepDownloadProps) => {
         <PaymentSection
           isPaying={isPaying}
           isAuthenticated={!!user}
+          userEmail={user?.email || null}
+          guestEmail={guestEmail}
+          setGuestEmail={setGuestEmail}
+          emailError={emailError}
+          setEmailError={setEmailError}
           onPay={handlePayAndDownload}
           couponCode={couponCode}
           setCouponCode={setCouponCode}
@@ -201,6 +222,11 @@ const StepDownload = ({ data }: StepDownloadProps) => {
 interface PaymentSectionProps {
   isPaying: boolean;
   isAuthenticated: boolean;
+  userEmail: string | null;
+  guestEmail: string;
+  setGuestEmail: (v: string) => void;
+  emailError: string | null;
+  setEmailError: (v: string | null) => void;
   onPay: () => void;
   couponCode: string;
   setCouponCode: (v: string) => void;
@@ -213,7 +239,8 @@ interface PaymentSectionProps {
 }
 
 const PaymentSection = ({
-  isPaying, isAuthenticated, onPay,
+  isPaying, isAuthenticated, userEmail, guestEmail, setGuestEmail, emailError, setEmailError,
+  onPay,
   couponCode, setCouponCode, appliedCoupon, setAppliedCoupon, couponError, setCouponError,
   isFreeDownloading, onFreeDownload,
 }: PaymentSectionProps) => {
@@ -253,6 +280,35 @@ const PaymentSection = ({
           <div className="flex items-center gap-2 text-sm"><CheckCircle className="w-4 h-4 text-accent" /><span>Instant download — no subscription required</span></div>
         </div>
 
+        {/* Email Input for Guests */}
+        {!isAuthenticated && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Mail className="w-4 h-4 text-muted-foreground" />
+              Email Address
+            </label>
+            <Input
+              type="email"
+              placeholder="your@email.com"
+              value={guestEmail}
+              onChange={(e) => { setGuestEmail(e.target.value); setEmailError(null); }}
+              className={emailError ? "border-destructive" : ""}
+            />
+            {emailError && <p className="text-xs text-destructive">{emailError}</p>}
+            <p className="text-xs text-muted-foreground">
+              We'll create an account for you and send a login link to access your paystub anytime.
+            </p>
+          </div>
+        )}
+
+        {isAuthenticated && userEmail && (
+          <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-4 py-2.5 text-sm">
+            <Mail className="w-4 h-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Paying as</span>
+            <span className="font-medium text-foreground">{userEmail}</span>
+          </div>
+        )}
+
         {/* Coupon Code */}
         <div className="space-y-2">
           {appliedCoupon ? (
@@ -285,17 +341,10 @@ const PaymentSection = ({
         </div>
 
         <div className="space-y-4 pt-2">
-          {!isAuthenticated && (
-            <p className="text-sm text-muted-foreground text-center">
-              Please <a href="/login" className="text-primary underline">log in</a> or{" "}
-              <a href="/signup" className="text-primary underline">create an account</a> to purchase.
-            </p>
-          )}
-
           <Button
             className="w-full bg-gradient-primary hover:opacity-90 text-lg h-12"
             onClick={onPay}
-            disabled={isPaying || !isAuthenticated}
+            disabled={isPaying}
           >
             {isPaying ? (
               <span className="flex items-center gap-2">
