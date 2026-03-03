@@ -159,7 +159,7 @@ const HeroSection = () => {
               <div className="bg-muted/50 px-6 py-4 flex justify-between items-center text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <FileText className="w-4 h-4" />
-                  <span>PaystubPro - Verified Document</span>
+                  <span>PayStub Wizard - Verified Document</span>
                 </div>
                 <div className="flex items-center gap-2 text-success">
                   <Shield className="w-4 h-4" />

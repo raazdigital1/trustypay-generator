@@ -60,7 +60,7 @@ const FAQPage = () => {
               Frequently Asked Questions
             </h1>
             <p className="text-xl text-muted-foreground">
-              Find answers to common questions about PaystubPro
+              Find answers to common questions about PayStub Wizard
             </p>
           </div>
 

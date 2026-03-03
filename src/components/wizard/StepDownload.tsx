@@ -31,36 +31,35 @@ const StepDownload = ({ data }: StepDownloadProps) => {
   const handleDownload = async (format: "pdf" | "png" | "xlsx") => {
     setIsDownloading(format);
     try {
-      if (format === "pdf") {
+      if (format === "pdf" || format === "png") {
         const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
-          body: data,
+          body: { ...data, format },
           headers: { "Content-Type": "application/json" },
         });
 
         if (error) throw error;
 
-        // funcData comes back as a Blob when Content-Type is not JSON
         let blob: Blob;
+        const mimeType = format === "pdf" ? "application/pdf" : "image/png";
         if (funcData instanceof Blob) {
           blob = funcData;
         } else if (funcData instanceof ArrayBuffer) {
-          blob = new Blob([funcData], { type: "application/pdf" });
+          blob = new Blob([funcData], { type: mimeType });
         } else {
-          // If for some reason it's returned as something else, try to handle
           throw new Error("Unexpected response format");
         }
 
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `paystub_${data.employee.firstName}_${data.employee.lastName}.pdf`;
+        a.download = `paystub_${data.employee.firstName}_${data.employee.lastName}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
         toast({
-          title: "PDF Downloaded!",
+          title: `${format.toUpperCase()} Downloaded!`,
           description: "Your paystub has been downloaded successfully.",
         });
       } else {
@@ -160,7 +159,7 @@ const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProp
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="text-center bg-muted/50 rounded-lg p-6">
-          <div className="text-4xl font-bold text-foreground mb-1">$7.99</div>
+          <div className="text-4xl font-bold text-foreground mb-1">$4.99</div>
           <p className="text-sm text-muted-foreground">per paystub</p>
         </div>
 
@@ -214,7 +213,7 @@ const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProp
             ) : (
               <>
                 <CreditCard className="w-5 h-5 mr-2" />
-                Pay $7.99 & Download
+                Pay $4.99 & Download
               </>
             )}
           </Button>
@@ -235,7 +234,7 @@ const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProp
               <Badge className="bg-accent text-accent-foreground">
                 Save 80%
               </Badge>
-              Pro Plan — $49.99/month
+              Pro Plan — $29.99/month
             </h4>
             <p className="text-sm text-muted-foreground mt-1">
               Unlimited paystubs, all templates, priority support

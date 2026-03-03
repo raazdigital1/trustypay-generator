@@ -3,19 +3,42 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Plus, History, Settings, LogOut, CreditCard, Users, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { FileText, Plus, History, Settings, LogOut, CreditCard, Users, Loader2, Eye, Download, Lock, User, Bell } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 const PRO_PRICE_ID = "price_1T6P0BGf3K1hj4vvDSuYmNEv";
 
+interface PaystubRecord {
+  id: string;
+  pay_date: string;
+  gross_pay: number | null;
+  net_pay: number | null;
+  status: string | null;
+  created_at: string;
+}
+
 const Dashboard = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, resetPassword } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [subscription, setSubscription] = useState<{ subscribed: boolean; subscription_end?: string } | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [paystubs, setPaystubs] = useState<PaystubRecord[]>([]);
+  const [loadingPaystubs, setLoadingPaystubs] = useState(true);
+
+  // Profile editing
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Password
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const checkSubscription = useCallback(async () => {
     try {
@@ -27,14 +50,41 @@ const Dashboard = () => {
     }
   }, []);
 
+  const fetchPaystubs = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("paystubs")
+        .select("id, pay_date, gross_pay, net_pay, status, created_at")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      setPaystubs(data || []);
+    } catch {
+      setPaystubs([]);
+    } finally {
+      setLoadingPaystubs(false);
+    }
+  }, []);
+
+  const fetchProfile = useCallback(async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("user_id", user!.id)
+      .single();
+    if (data) setFullName(data.full_name || "");
+  }, [user]);
+
   useEffect(() => {
     if (!loading && !user) {
       navigate("/login");
     }
     if (user) {
       checkSubscription();
+      fetchPaystubs();
+      fetchProfile();
     }
-  }, [user, loading, navigate, checkSubscription]);
+  }, [user, loading, navigate, checkSubscription, fetchPaystubs, fetchProfile]);
 
   useEffect(() => {
     const checkout = searchParams.get("checkout");
@@ -76,6 +126,36 @@ const Dashboard = () => {
     navigate("/");
   };
 
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: fullName })
+      .eq("user_id", user!.id);
+    setSavingProfile(false);
+    if (error) {
+      toast({ title: "Failed to update profile", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Profile updated!" });
+      setProfileDialogOpen(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setChangingPassword(true);
+    const { error } = await resetPassword(user!.email!);
+    setChangingPassword(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Password reset email sent", description: "Check your inbox for the reset link." });
+      setPasswordDialogOpen(false);
+    }
+  };
+
+  const formatCurrency = (amount: number | null) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount || 0);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background p-8">
@@ -106,7 +186,7 @@ const Dashboard = () => {
                 <FileText className="w-5 h-5 text-primary-foreground" />
               </div>
               <span className="text-lg font-bold text-foreground">
-                Paystub<span className="text-primary">Pro</span>
+                PayStub<span className="text-primary">Wizard</span>
               </span>
             </Link>
 
@@ -148,6 +228,7 @@ const Dashboard = () => {
             </Card>
           </Link>
 
+          {/* Paystub History */}
           <Card className="border-border">
             <CardHeader>
               <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-2">
@@ -159,7 +240,28 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">No paystubs yet</p>
+              {loadingPaystubs ? (
+                <Skeleton className="h-16 w-full" />
+              ) : paystubs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No paystubs yet</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {paystubs.map((ps) => (
+                    <div key={ps.id} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0">
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {new Date(ps.pay_date).toLocaleDateString()}
+                        </p>
+                        <p className="text-xs text-muted-foreground capitalize">{ps.status || "draft"}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-foreground">{formatCurrency(ps.net_pay)}</p>
+                        <p className="text-xs text-muted-foreground">Net</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -220,7 +322,7 @@ const Dashboard = () => {
                   disabled={checkingOut}
                 >
                   {checkingOut && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Upgrade to Pro — $49.99/mo
+                  Upgrade to Pro — $29.99/mo
                 </Button>
               )}
             </CardContent>
@@ -237,13 +339,68 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start">
-                Edit Profile
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                Change Password
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
+              {/* Edit Profile Dialog */}
+              <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    <User className="w-4 h-4 mr-2" />
+                    Edit Profile
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Profile</DialogTitle>
+                    <DialogDescription>Update your account information</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <Input value={user.email || ""} disabled />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName">Full Name</Label>
+                      <Input
+                        id="fullName"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Your full name"
+                      />
+                    </div>
+                    <Button onClick={handleSaveProfile} disabled={savingProfile} className="w-full bg-gradient-primary hover:opacity-90">
+                      {savingProfile ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Save Changes
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Change Password Dialog */}
+              <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Lock className="w-4 h-4 mr-2" />
+                    Change Password
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Change Password</DialogTitle>
+                    <DialogDescription>We'll send a password reset link to your email</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <p className="text-sm text-muted-foreground">
+                      A password reset link will be sent to <strong>{user.email}</strong>.
+                    </p>
+                    <Button onClick={handleChangePassword} disabled={changingPassword} className="w-full bg-gradient-primary hover:opacity-90">
+                      {changingPassword ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Send Reset Link
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Button variant="outline" className="w-full justify-start" onClick={() => toast({ title: "Coming soon", description: "Notification preferences will be available soon." })}>
+                <Bell className="w-4 h-4 mr-2" />
                 Notification Preferences
               </Button>
             </CardContent>

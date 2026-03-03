@@ -39,7 +39,7 @@ const Footer = () => {
                 <FileText className="w-6 h-6 text-primary-foreground" />
               </div>
               <span className="text-xl font-bold">
-                Paystub<span className="text-primary">Pro</span>
+                PayStub<span className="text-primary">Wizard</span>
               </span>
             </Link>
             <p className="text-background/70 text-sm mb-6 max-w-xs">
@@ -49,7 +49,7 @@ const Footer = () => {
             <div className="space-y-2 text-sm text-background/70">
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4" />
-                <span>support@paystubpro.com</span>
+                <span>support@paystubwizard.com</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4" />
@@ -137,7 +137,7 @@ const Footer = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-background/60">
-              © {currentYear} PaystubPro. All rights reserved.
+              © {currentYear} PayStub Wizard. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-sm text-background/60">
               <span>🔒 SSL Secured</span>
