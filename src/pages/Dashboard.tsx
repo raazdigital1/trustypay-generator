@@ -6,11 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { FileText, Plus, History, Settings, LogOut, CreditCard, Users, Loader2, Eye, Download, Lock, User, Bell, DollarSign, CheckCircle, XCircle, Clock } from "lucide-react";
+import { FileText, Plus, History, Settings, LogOut, CreditCard, Users, Loader2, Eye, Download, Lock, User, Bell, DollarSign, CheckCircle, XCircle, Clock, Pencil } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { loadPaystubFromDb } from "@/lib/paystub-db";
 
 const PRO_PRICE_ID = "price_1T6P0BGf3K1hj4vvDSuYmNEv";
 
@@ -20,6 +21,7 @@ interface PaystubRecord {
   gross_pay: number | null;
   net_pay: number | null;
   status: string | null;
+  is_watermarked: boolean | null;
   created_at: string;
 }
 
@@ -43,6 +45,7 @@ const Dashboard = () => {
   const [loadingPaystubs, setLoadingPaystubs] = useState(true);
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // Profile editing
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
@@ -67,9 +70,9 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase
         .from("paystubs")
-        .select("id, pay_date, gross_pay, net_pay, status, created_at")
+        .select("id, pay_date, gross_pay, net_pay, status, is_watermarked, created_at")
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(20);
       if (error) throw error;
       setPaystubs(data || []);
     } catch {
@@ -183,6 +186,41 @@ const Dashboard = () => {
     }
   };
 
+  const handleDownloadPaystub = async (paystubId: string) => {
+    setDownloadingId(paystubId);
+    try {
+      const paystubData = await loadPaystubFromDb(paystubId);
+      if (!paystubData) throw new Error("Could not load paystub data");
+
+      const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
+        body: { ...paystubData, format: "pdf", watermark: false },
+        headers: { "Content-Type": "application/json" },
+      });
+      if (error) throw error;
+
+      let blob: Blob;
+      if (funcData instanceof Blob) blob = funcData;
+      else if (funcData instanceof ArrayBuffer) blob = new Blob([funcData], { type: "application/pdf" });
+      else throw new Error("Unexpected response");
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({ title: "PDF Downloaded!" });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Download failed", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const formatCurrency = (amount: number | null) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount || 0);
 
@@ -259,54 +297,78 @@ const Dashboard = () => {
           </Link>
 
           {/* Paystub History */}
-          <Card className="border-border">
+          <Card className="border-border md:col-span-2">
             <CardHeader>
-              <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-2">
-                <History className="w-6 h-6 text-accent" />
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-2">
+                    <History className="w-6 h-6 text-accent" />
+                  </div>
+                  <CardTitle className="text-lg">Paystub History</CardTitle>
+                  <CardDescription>
+                    View, edit, and download your previously generated paystubs
+                  </CardDescription>
+                </div>
               </div>
-              <CardTitle className="text-lg">Paystub History</CardTitle>
-              <CardDescription>
-                View and manage your previously generated paystubs
-              </CardDescription>
             </CardHeader>
             <CardContent>
               {loadingPaystubs ? (
                 <Skeleton className="h-16 w-full" />
               ) : paystubs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No paystubs yet</p>
+                <p className="text-sm text-muted-foreground">No paystubs yet. <Link to="/create" className="text-primary underline">Create one now</Link></p>
               ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {paystubs.map((ps) => (
-                    <div key={ps.id} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0">
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {new Date(ps.pay_date).toLocaleDateString()}
-                        </p>
-                        <p className="text-xs text-muted-foreground capitalize">{ps.status || "draft"}</p>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {paystubs.map((ps) => {
+                    const isPaid = ps.status === "completed" || ps.status === "downloaded";
+                    return (
+                      <div key={ps.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-5 h-5 text-muted-foreground shrink-0" />
+                          <div>
+                            <p className="font-medium text-foreground text-sm">
+                              {new Date(ps.pay_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">{formatCurrency(ps.net_pay)} net</span>
+                              <Badge
+                                variant={isPaid ? "default" : "secondary"}
+                                className="text-xs capitalize"
+                              >
+                                {ps.status || "draft"}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/create?edit=${ps.id}`)}
+                            title="Edit paystub"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          {isPaid && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownloadPaystub(ps.id)}
+                              disabled={downloadingId === ps.id}
+                              title="Download PDF"
+                            >
+                              {downloadingId === ps.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Download className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-foreground">{formatCurrency(ps.net_pay)}</p>
-                        <p className="text-xs text-muted-foreground">Net</p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border">
-            <CardHeader>
-              <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center mb-2">
-                <Users className="w-6 h-6 text-warning" />
-              </div>
-              <CardTitle className="text-lg">Saved Employers</CardTitle>
-              <CardDescription>
-                Manage your saved employer information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">No employers saved</p>
             </CardContent>
           </Card>
         </div>
