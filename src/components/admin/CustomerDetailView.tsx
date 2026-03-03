@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, DollarSign, CheckCircle, Clock, XCircle, User, CreditCard } from "lucide-react";
+import { FileText, DollarSign, CheckCircle, Clock, XCircle, User, CreditCard, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface CustomerDetailViewProps {
   open: boolean;
@@ -70,6 +71,48 @@ const CustomerDetailView = ({
     .filter((t) => t.status === "succeeded" || t.status === "completed")
     .reduce((sum, t) => sum + t.amount, 0);
 
+  const downloadCsv = (filename: string, headers: string[], rows: string[][]) => {
+    const escape = (val: string) => `"${val.replace(/"/g, '""')}"`;
+    const csv = [headers.map(escape).join(","), ...rows.map((r) => r.map(escape).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPaystubsCsv = () => {
+    const headers = ["Pay Date", "Period Start", "Period End", "Gross Pay", "Deductions", "Net Pay", "Status", "Template", "Created"];
+    const rows = paystubs.map((ps) => [
+      new Date(ps.pay_date).toLocaleDateString(),
+      new Date(ps.pay_period_start).toLocaleDateString(),
+      new Date(ps.pay_period_end).toLocaleDateString(),
+      String(ps.gross_pay ?? 0),
+      String(ps.total_deductions ?? 0),
+      String(ps.net_pay ?? 0),
+      ps.status ?? "draft",
+      ps.template_id || "classic",
+      new Date(ps.created_at).toLocaleDateString(),
+    ]);
+    downloadCsv(`paystubs_${(customerEmail || userId).replace(/[^a-zA-Z0-9]/g, "_")}.csv`, headers, rows);
+  };
+
+  const exportTransactionsCsv = () => {
+    const headers = ["Date", "Description", "Amount", "Currency", "Status", "Payment Intent"];
+    const rows = transactions.map((tx) => [
+      new Date(tx.created_at).toLocaleString(),
+      tx.description || "Paystub Purchase",
+      String(tx.amount),
+      tx.currency || "usd",
+      tx.status || "unknown",
+      tx.stripe_payment_intent_id || "",
+    ]);
+    downloadCsv(`transactions_${(customerEmail || userId).replace(/[^a-zA-Z0-9]/g, "_")}.csv`, headers, rows);
+  };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
@@ -145,6 +188,14 @@ const CustomerDetailView = ({
           </TabsList>
 
           <TabsContent value="paystubs">
+            {paystubs.length > 0 && (
+              <div className="flex justify-end mb-2">
+                <Button variant="outline" size="sm" onClick={exportPaystubsCsv} className="gap-2">
+                  <Download className="w-3.5 h-3.5" />
+                  Export CSV
+                </Button>
+              </div>
+            )}
             {loadingPaystubs ? (
               <Skeleton className="h-32 w-full" />
             ) : paystubs.length === 0 ? (
@@ -203,6 +254,14 @@ const CustomerDetailView = ({
           </TabsContent>
 
           <TabsContent value="transactions">
+            {transactions.length > 0 && (
+              <div className="flex justify-end mb-2">
+                <Button variant="outline" size="sm" onClick={exportTransactionsCsv} className="gap-2">
+                  <Download className="w-3.5 h-3.5" />
+                  Export CSV
+                </Button>
+              </div>
+            )}
             {loadingTransactions ? (
               <Skeleton className="h-32 w-full" />
             ) : transactions.length === 0 ? (
