@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { FileText, ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
+import { FileText, ArrowLeft, ArrowRight, Check, Loader2, Download } from "lucide-react";
 import StepTemplateSelection from "@/components/wizard/StepTemplateSelection";
 import StepEmployerDetails from "@/components/wizard/StepEmployerDetails";
 import StepEmployeeDetails from "@/components/wizard/StepEmployeeDetails";
@@ -15,6 +15,7 @@ import { useTaxRates } from "@/hooks/useTaxRates";
 import { validateStep, StepErrors } from "@/hooks/useWizardValidation";
 import { toast } from "@/hooks/use-toast";
 import { loadPaystubFromDb, updatePaystubInDb } from "@/lib/paystub-db";
+import { supabase } from "@/integrations/supabase/client";
 
 const steps = [
   { id: 1, name: "Template" },
@@ -117,6 +118,38 @@ const Create = () => {
     } catch (err) {
       console.error("Save error:", err);
       toast({ title: "Failed to save", description: "Please try again.", variant: "destructive" });
+    }
+  };
+
+  const handleSaveAndDownload = async () => {
+    if (!editingPaystubId) return;
+    try {
+      await updatePaystubInDb(editingPaystubId, paystubData);
+      toast({ title: "Paystub saved! Generating PDF…" });
+
+      const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
+        body: { ...paystubData, format: "pdf", watermark: false },
+        headers: { "Content-Type": "application/json" },
+      });
+      if (error) throw error;
+
+      let blob: Blob;
+      if (funcData instanceof Blob) blob = funcData;
+      else if (funcData instanceof ArrayBuffer) blob = new Blob([funcData], { type: "application/pdf" });
+      else throw new Error("Unexpected response");
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "PDF Downloaded!" });
+    } catch (err) {
+      console.error("Save & download error:", err);
+      toast({ title: "Failed", description: "Please try again.", variant: "destructive" });
     }
   };
 
@@ -305,9 +338,15 @@ const Create = () => {
 
             <div className="flex items-center gap-2">
               {editingPaystubId && currentStep === steps.length && (
-                <Button variant="outline" onClick={handleSaveEdit}>
-                  Save Changes
-                </Button>
+                <>
+                  <Button variant="outline" onClick={handleSaveEdit}>
+                    Save Changes
+                  </Button>
+                  <Button variant="default" onClick={handleSaveAndDownload} className="gap-2">
+                    <Download className="w-4 h-4" />
+                    Save & Download
+                  </Button>
+                </>
               )}
               {currentStep < steps.length ? (
                 <Button

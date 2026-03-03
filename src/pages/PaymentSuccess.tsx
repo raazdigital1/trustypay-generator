@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, Download, Home, FileText, Loader2, AlertTriangle, Image, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { loadPaystubFromDb } from "@/lib/paystub-db";
+import { svgToPng } from "@/lib/svg-to-png";
 import { toast } from "@/hooks/use-toast";
 
 const PaymentSuccess = () => {
@@ -62,30 +63,49 @@ const PaymentSuccess = () => {
       const paystubData = await loadPaystubFromDb(paystubId);
       if (!paystubData) throw new Error("Could not load paystub data");
 
-      if (format === "pdf" || format === "png") {
+      if (format === "pdf") {
         const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
-          body: { ...paystubData, format, watermark: false },
+          body: { ...paystubData, format: "pdf", watermark: false },
           headers: { "Content-Type": "application/json" },
         });
-
         if (error) throw error;
 
-        const mimeType = format === "pdf" ? "application/pdf" : "image/png";
         let blob: Blob;
         if (funcData instanceof Blob) blob = funcData;
-        else if (funcData instanceof ArrayBuffer) blob = new Blob([funcData], { type: mimeType });
+        else if (funcData instanceof ArrayBuffer) blob = new Blob([funcData], { type: "application/pdf" });
         else throw new Error("Unexpected response format");
 
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}.${format}`;
+        a.download = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        toast({ title: "PDF Downloaded!" });
+      } else if (format === "png") {
+        const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
+          body: { ...paystubData, format: "png", watermark: false },
+          headers: { "Content-Type": "application/json" },
+        });
+        if (error) throw error;
 
-        toast({ title: `${format.toUpperCase()} Downloaded!`, description: "Your paystub has been downloaded." });
+        let svgText: string;
+        if (funcData instanceof Blob) svgText = await funcData.text();
+        else if (typeof funcData === "string") svgText = funcData;
+        else throw new Error("Unexpected SVG response");
+
+        const pngBlob = await svgToPng(svgText);
+        const url = URL.createObjectURL(pngBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast({ title: "PNG Downloaded!" });
       } else {
         toast({ title: "Coming soon", description: "Excel format will be available soon!" });
       }
