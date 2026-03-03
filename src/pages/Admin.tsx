@@ -11,6 +11,7 @@ import AdminTransactions from "@/components/admin/AdminTransactions";
 import AdminFraudFlags from "@/components/admin/AdminFraudFlags";
 import AdminBilling from "@/components/admin/AdminBilling";
 import AdminAuditLogs from "@/components/admin/AdminAuditLogs";
+import AdminCoupons from "@/components/admin/AdminCoupons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect } from "react";
 
@@ -56,6 +57,8 @@ const Admin = () => {
         return <AdminTransactions />;
       case "fraud-flags":
         return <AdminFraudFlags />;
+      case "coupons":
+        return <AdminCoupons />;
       case "audit-logs":
         return <AdminAuditLogs />;
       default:
