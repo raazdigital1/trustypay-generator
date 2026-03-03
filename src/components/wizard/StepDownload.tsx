@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSearchParams } from "react-router-dom";
+import { savePaystubToDb } from "@/lib/paystub-db";
 
 interface StepDownloadProps {
   data: PaystubData;
@@ -25,7 +26,6 @@ const StepDownload = ({ data }: StepDownloadProps) => {
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
 
-  // Check if returning from successful payment
   useEffect(() => {
     if (searchParams.get("payment") === "success") {
       setIsPaid(true);
@@ -44,13 +44,15 @@ const StepDownload = ({ data }: StepDownloadProps) => {
 
     setIsPaying(true);
     try {
+      // Save paystub to database first
+      const paystubId = await savePaystubToDb(data, user.id);
+
       const { data: funcData, error } = await supabase.functions.invoke("create-payment", {
-        body: { coupon_code: appliedCoupon || undefined },
+        body: { coupon_code: appliedCoupon || undefined, paystub_id: paystubId },
       });
 
       if (error) throw error;
       if (funcData?.error) {
-        // Coupon validation error from the edge function
         setCouponError(funcData.error);
         setAppliedCoupon(null);
         return;
@@ -166,7 +168,6 @@ const StepDownload = ({ data }: StepDownloadProps) => {
         />
       )}
 
-      {/* What's Included */}
       <Card className="mt-8">
         <CardHeader>
           <CardTitle className="text-lg">What's Included</CardTitle>
@@ -237,9 +238,7 @@ const PaymentSection = ({
           <CreditCard className="w-7 h-7 text-primary" />
         </div>
         <CardTitle className="text-2xl">One-Time Payment</CardTitle>
-        <CardDescription>
-          Pay once and download your paystub instantly
-        </CardDescription>
+        <CardDescription>Pay once and download your paystub instantly</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="text-center bg-muted/50 rounded-lg p-6">
@@ -248,22 +247,10 @@ const PaymentSection = ({
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm">
-            <CheckCircle className="w-4 h-4 text-accent" />
-            <span>Watermark-free professional PDF</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <CheckCircle className="w-4 h-4 text-accent" />
-            <span>High-quality PNG image</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <CheckCircle className="w-4 h-4 text-accent" />
-            <span>Excel spreadsheet for records</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <CheckCircle className="w-4 h-4 text-accent" />
-            <span>Instant download — no subscription required</span>
-          </div>
+          <div className="flex items-center gap-2 text-sm"><CheckCircle className="w-4 h-4 text-accent" /><span>Watermark-free professional PDF</span></div>
+          <div className="flex items-center gap-2 text-sm"><CheckCircle className="w-4 h-4 text-accent" /><span>High-quality PNG image</span></div>
+          <div className="flex items-center gap-2 text-sm"><CheckCircle className="w-4 h-4 text-accent" /><span>Excel spreadsheet for records</span></div>
+          <div className="flex items-center gap-2 text-sm"><CheckCircle className="w-4 h-4 text-accent" /><span>Instant download — no subscription required</span></div>
         </div>
 
         {/* Coupon Code */}
@@ -313,7 +300,7 @@ const PaymentSection = ({
             {isPaying ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Redirecting to checkout...
+                Saving & redirecting...
               </span>
             ) : (
               <>
@@ -336,9 +323,7 @@ const PaymentSection = ({
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h4 className="font-semibold flex items-center gap-2">
-              <Badge className="bg-accent text-accent-foreground">
-                Save 80%
-              </Badge>
+              <Badge className="bg-accent text-accent-foreground">Save 80%</Badge>
               Pro Plan — $29.99/month
             </h4>
             <p className="text-sm text-muted-foreground mt-1">
@@ -367,11 +352,7 @@ const PaymentSection = ({
               </p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            onClick={onFreeDownload}
-            disabled={isFreeDownloading}
-          >
+          <Button variant="outline" onClick={onFreeDownload} disabled={isFreeDownloading}>
             {isFreeDownloading ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -407,101 +388,37 @@ const DownloadSection = ({ isDownloading, onDownload }: DownloadSectionProps) =>
           </div>
           <div>
             <p className="font-semibold text-foreground">Payment Successful!</p>
-            <p className="text-sm text-muted-foreground">
-              Your account has been created. Choose your download format below.
-            </p>
+            <p className="text-sm text-muted-foreground">Choose your download format below.</p>
           </div>
         </div>
       </CardContent>
     </Card>
 
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <Card className="border-2 hover:border-primary/50 transition-colors">
-        <CardHeader className="text-center pb-2">
-          <div className="mx-auto w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center mb-2">
-            <FileText className="w-6 h-6 text-destructive" />
-          </div>
-          <CardTitle className="text-lg">PDF Document</CardTitle>
-          <CardDescription>Professional format for printing</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            className="w-full"
-            onClick={() => onDownload("pdf")}
-            disabled={isDownloading !== null}
-          >
-            {isDownloading === "pdf" ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating...
-              </span>
-            ) : (
-              <>
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="border-2 hover:border-primary/50 transition-colors">
-        <CardHeader className="text-center pb-2">
-          <div className="mx-auto w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-2">
-            <Image className="w-6 h-6 text-accent" />
-          </div>
-          <CardTitle className="text-lg">PNG Image</CardTitle>
-          <CardDescription>High-quality image format</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            className="w-full"
-            onClick={() => onDownload("png")}
-            disabled={isDownloading !== null}
-          >
-            {isDownloading === "png" ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating...
-              </span>
-            ) : (
-              <>
-                <Download className="w-4 h-4 mr-2" />
-                Download PNG
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="border-2 hover:border-primary/50 transition-colors">
-        <CardHeader className="text-center pb-2">
-          <div className="mx-auto w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-2">
-            <FileSpreadsheet className="w-6 h-6 text-primary" />
-          </div>
-          <CardTitle className="text-lg">Excel File</CardTitle>
-          <CardDescription>Spreadsheet for records</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            className="w-full"
-            onClick={() => onDownload("xlsx")}
-            disabled={isDownloading !== null}
-          >
-            {isDownloading === "xlsx" ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating...
-              </span>
-            ) : (
-              <>
-                <Download className="w-4 h-4 mr-2" />
-                Download Excel
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+      {([
+        { format: "pdf" as const, label: "PDF Document", desc: "Professional format for printing", icon: FileText, color: "destructive" },
+        { format: "png" as const, label: "PNG Image", desc: "High-quality image format", icon: Image, color: "accent" },
+        { format: "xlsx" as const, label: "Excel File", desc: "Spreadsheet for records", icon: FileSpreadsheet, color: "primary" },
+      ]).map(({ format, label, desc, icon: Icon, color }) => (
+        <Card key={format} className="border-2 hover:border-primary/50 transition-colors">
+          <CardHeader className="text-center pb-2">
+            <div className={`mx-auto w-12 h-12 bg-${color}/10 rounded-lg flex items-center justify-center mb-2`}>
+              <Icon className={`w-6 h-6 text-${color}`} />
+            </div>
+            <CardTitle className="text-lg">{label}</CardTitle>
+            <CardDescription>{desc}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" onClick={() => onDownload(format)} disabled={isDownloading !== null}>
+              {isDownloading === format ? (
+                <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Generating...</span>
+              ) : (
+                <><Download className="w-4 h-4 mr-2" />Download {format.toUpperCase()}</>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   </div>
 );

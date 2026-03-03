@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { FileText, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { FileText, ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import StepTemplateSelection from "@/components/wizard/StepTemplateSelection";
 import StepEmployerDetails from "@/components/wizard/StepEmployerDetails";
 import StepEmployeeDetails from "@/components/wizard/StepEmployeeDetails";
@@ -14,6 +14,7 @@ import { PaystubData, defaultPaystubData } from "@/types/paystub";
 import { useTaxRates } from "@/hooks/useTaxRates";
 import { validateStep, StepErrors } from "@/hooks/useWizardValidation";
 import { toast } from "@/hooks/use-toast";
+import { loadPaystubFromDb, updatePaystubInDb } from "@/lib/paystub-db";
 
 const steps = [
   { id: 1, name: "Template" },
@@ -26,10 +27,37 @@ const steps = [
 ];
 
 const Create = () => {
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("edit");
+
   const [currentStep, setCurrentStep] = useState(1);
   const [paystubData, setPaystubData] = useState<PaystubData>(defaultPaystubData);
   const [stepErrors, setStepErrors] = useState<StepErrors>({});
+  const [isLoadingEdit, setIsLoadingEdit] = useState(!!editId);
+  const [editingPaystubId, setEditingPaystubId] = useState<string | null>(editId);
   const { taxRates, loadError } = useTaxRates();
+
+  // Load paystub data when editing
+  useEffect(() => {
+    if (!editId) return;
+    const load = async () => {
+      try {
+        const data = await loadPaystubFromDb(editId);
+        if (data) {
+          setPaystubData(data);
+          setEditingPaystubId(editId);
+        } else {
+          toast({ title: "Paystub not found", variant: "destructive" });
+        }
+      } catch (err) {
+        console.error("Failed to load paystub:", err);
+        toast({ title: "Failed to load paystub", variant: "destructive" });
+      } finally {
+        setIsLoadingEdit(false);
+      }
+    };
+    load();
+  }, [editId]);
 
   const progress = (currentStep / steps.length) * 100;
 
@@ -64,7 +92,6 @@ const Create = () => {
 
   const updatePaystubData = (data: Partial<PaystubData>) => {
     setPaystubData((prev) => ({ ...prev, ...data }));
-    // Clear errors for fields being updated
     if (Object.keys(stepErrors).length > 0) {
       const newErrors = { ...stepErrors };
       Object.keys(data).forEach((key) => {
@@ -79,6 +106,17 @@ const Create = () => {
         }
       });
       setStepErrors(newErrors);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingPaystubId) return;
+    try {
+      await updatePaystubInDb(editingPaystubId, paystubData);
+      toast({ title: "Paystub updated!", description: "Your changes have been saved." });
+    } catch (err) {
+      console.error("Save error:", err);
+      toast({ title: "Failed to save", description: "Please try again.", variant: "destructive" });
     }
   };
 
@@ -141,6 +179,17 @@ const Create = () => {
     }
   };
 
+  if (isLoadingEdit) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading paystub…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -156,12 +205,22 @@ const Create = () => {
               </span>
             </Link>
 
-            <Link to="/">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Home
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              {editingPaystubId && (
+                <Link to="/dashboard">
+                  <Button variant="ghost" size="sm">
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back to Dashboard
+                  </Button>
+                </Link>
+              )}
+              <Link to="/">
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Home
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -244,19 +303,26 @@ const Create = () => {
               Step {currentStep} of {steps.length}
             </span>
 
-            {currentStep < steps.length ? (
-              <Button
-                onClick={handleNext}
-                className="bg-gradient-primary hover:opacity-90"
-              >
-                Next
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            ) : (
-              <Button className="bg-gradient-primary hover:opacity-90">
-                Complete
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {editingPaystubId && currentStep === steps.length && (
+                <Button variant="outline" onClick={handleSaveEdit}>
+                  Save Changes
+                </Button>
+              )}
+              {currentStep < steps.length ? (
+                <Button
+                  onClick={handleNext}
+                  className="bg-gradient-primary hover:opacity-90"
+                >
+                  Next
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              ) : (
+                <Button className="bg-gradient-primary hover:opacity-90">
+                  Complete
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </footer>

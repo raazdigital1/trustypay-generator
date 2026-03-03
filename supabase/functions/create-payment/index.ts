@@ -26,7 +26,6 @@ Deno.serve(async (req) => {
   );
 
   try {
-    // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
 
@@ -44,6 +43,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const couponCode = typeof body.coupon_code === "string" ? body.coupon_code.trim().toUpperCase() : null;
+    const paystubId = typeof body.paystub_id === "string" ? body.paystub_id : null;
 
     // Validate coupon if provided
     let discountPercent: number | null = null;
@@ -59,7 +59,6 @@ Deno.serve(async (req) => {
         .single();
 
       if (couponErr || !coupon) {
-        // Return 200 with error field so frontend can read it
         return new Response(
           JSON.stringify({ error: "Invalid or expired coupon code" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
@@ -93,7 +92,6 @@ Deno.serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
-    // Check for existing Stripe customer
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId: string | undefined;
     if (customers.data.length > 0) {
@@ -121,15 +119,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Create checkout session
+    const origin = req.headers.get("origin") || "http://localhost:3000";
+    const successUrl = paystubId
+      ? `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}&paystub_id=${paystubId}`
+      : `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
+
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: PAYSTUB_PRICE_ID, quantity: 1 }],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/create?payment=canceled`,
-      metadata: couponId ? { coupon_id: couponId } : undefined,
+      success_url: successUrl,
+      cancel_url: `${origin}/create?payment=canceled`,
+      metadata: {
+        ...(couponId ? { coupon_id: couponId } : {}),
+        ...(paystubId ? { paystub_id: paystubId } : {}),
+      },
     };
 
     if (stripeCouponId) {
@@ -138,7 +143,7 @@ Deno.serve(async (req) => {
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
-    // Increment coupon usage (non-blocking, non-critical)
+    // Increment coupon usage (non-blocking)
     if (couponId) {
       supabaseAdmin
         .from("coupons")

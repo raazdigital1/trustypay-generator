@@ -18,8 +18,12 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
   );
 
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
+
   try {
-    // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
 
@@ -57,12 +61,34 @@ Deno.serve(async (req) => {
 
     const paid = session.payment_status === "paid";
 
+    // If paid and paystub_id is in metadata, mark paystub as completed
+    if (paid && session.metadata?.paystub_id) {
+      const paystubId = session.metadata.paystub_id;
+      await supabaseAdmin
+        .from("paystubs")
+        .update({ status: "completed", is_watermarked: false })
+        .eq("id", paystubId)
+        .eq("user_id", user.id);
+
+      // Record transaction
+      await supabaseAdmin.from("transactions").insert({
+        user_id: user.id,
+        paystub_id: paystubId,
+        amount: (session.amount_total || 499) / 100,
+        currency: session.currency || "usd",
+        status: "succeeded",
+        stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : null,
+        description: "Pay-per-use paystub purchase",
+      });
+    }
+
     return new Response(
       JSON.stringify({
         verified: paid,
         status: session.payment_status,
         amount_total: session.amount_total,
         currency: session.currency,
+        paystub_id: session.metadata?.paystub_id || null,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );

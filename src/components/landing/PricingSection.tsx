@@ -1,9 +1,39 @@
-import { Check, Star, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Check, Star, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+
+const PRO_PRICE_ID = "price_1T6P0BGf3K1hj4vvDSuYmNEv";
 
 const PricingSection = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [checkingOut, setCheckingOut] = useState(false);
+
+  const handleProCheckout = async () => {
+    if (!user) {
+      navigate("/signup?plan=pro");
+      return;
+    }
+
+    setCheckingOut(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: { priceId: PRO_PRICE_ID },
+      });
+      if (error) throw error;
+      if (data?.url) window.location.href = data.url;
+    } catch (err: any) {
+      toast({ title: "Checkout failed", description: err.message, variant: "destructive" });
+    } finally {
+      setCheckingOut(false);
+    }
+  };
+
   const plans = [
     {
       name: "Free",
@@ -20,6 +50,7 @@ const PricingSection = () => {
       cta: "Get Started Free",
       variant: "outline" as const,
       popular: false,
+      action: "link" as const,
     },
     {
       name: "Pro",
@@ -40,6 +71,7 @@ const PricingSection = () => {
       cta: "Start Pro Trial",
       variant: "default" as const,
       popular: true,
+      action: "checkout" as const,
     },
     {
       name: "Pay-Per-Use",
@@ -58,13 +90,13 @@ const PricingSection = () => {
       cta: "Create Paystub",
       variant: "outline" as const,
       popular: false,
+      action: "link" as const,
     },
   ];
 
   return (
     <section id="pricing" className="py-16 lg:py-24 bg-muted/30">
       <div className="container mx-auto px-4">
-        {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-sm font-semibold text-primary uppercase tracking-wider">
             Pricing
@@ -79,7 +111,6 @@ const PricingSection = () => {
           </p>
         </div>
 
-        {/* Pricing Cards */}
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan) => (
             <div
@@ -116,23 +147,40 @@ const PricingSection = () => {
                 ))}
               </ul>
 
-              <Link to="/create">
+              {plan.action === "checkout" ? (
                 <Button
                   variant={plan.variant}
                   className={`w-full h-12 text-base ${
-                    plan.popular
-                      ? "bg-gradient-primary hover:opacity-90"
-                      : ""
+                    plan.popular ? "bg-gradient-primary hover:opacity-90" : ""
                   }`}
+                  onClick={handleProCheckout}
+                  disabled={checkingOut}
                 >
-                  {plan.cta}
+                  {checkingOut ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Redirecting...
+                    </span>
+                  ) : (
+                    plan.cta
+                  )}
                 </Button>
-              </Link>
+              ) : (
+                <Link to="/create">
+                  <Button
+                    variant={plan.variant}
+                    className={`w-full h-12 text-base ${
+                      plan.popular ? "bg-gradient-primary hover:opacity-90" : ""
+                    }`}
+                  >
+                    {plan.cta}
+                  </Button>
+                </Link>
+              )}
             </div>
           ))}
         </div>
 
-        {/* Money Back Guarantee */}
         <div className="mt-12 text-center">
           <div className="inline-flex items-center gap-2 px-6 py-3 bg-success/10 rounded-full">
             <Sparkles className="w-5 h-5 text-success" />

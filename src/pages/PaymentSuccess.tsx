@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, Download, Home, FileText, Loader2, AlertTriangle } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckCircle, Download, Home, FileText, Loader2, AlertTriangle, Image, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { loadPaystubFromDb } from "@/lib/paystub-db";
+import { toast } from "@/hooks/use-toast";
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const sessionId = searchParams.get("session_id");
+  const paystubIdParam = searchParams.get("paystub_id");
 
   const [status, setStatus] = useState<"loading" | "verified" | "failed">("loading");
+  const [paystubId, setPaystubId] = useState<string | null>(paystubIdParam);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<{
     amount_total: number | null;
     currency: string | null;
@@ -33,10 +38,8 @@ const PaymentSuccess = () => {
 
         if (data?.verified) {
           setStatus("verified");
-          setPaymentInfo({
-            amount_total: data.amount_total,
-            currency: data.currency,
-          });
+          setPaymentInfo({ amount_total: data.amount_total, currency: data.currency });
+          if (data.paystub_id) setPaystubId(data.paystub_id);
         } else {
           setStatus("failed");
         }
@@ -47,6 +50,52 @@ const PaymentSuccess = () => {
 
     verify();
   }, [sessionId, user]);
+
+  const handleDownload = async (format: "pdf" | "png" | "xlsx") => {
+    if (!paystubId) {
+      toast({ title: "No paystub found", description: "Please download from your dashboard.", variant: "destructive" });
+      return;
+    }
+
+    setIsDownloading(format);
+    try {
+      const paystubData = await loadPaystubFromDb(paystubId);
+      if (!paystubData) throw new Error("Could not load paystub data");
+
+      if (format === "pdf" || format === "png") {
+        const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
+          body: { ...paystubData, format, watermark: false },
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (error) throw error;
+
+        const mimeType = format === "pdf" ? "application/pdf" : "image/png";
+        let blob: Blob;
+        if (funcData instanceof Blob) blob = funcData;
+        else if (funcData instanceof ArrayBuffer) blob = new Blob([funcData], { type: mimeType });
+        else throw new Error("Unexpected response format");
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast({ title: `${format.toUpperCase()} Downloaded!`, description: "Your paystub has been downloaded." });
+      } else {
+        toast({ title: "Coming soon", description: "Excel format will be available soon!" });
+      }
+    } catch (err) {
+      console.error("Download error:", err);
+      toast({ title: "Download Failed", description: "Please try downloading from your dashboard.", variant: "destructive" });
+    } finally {
+      setIsDownloading(null);
+    }
+  };
 
   if (status === "loading") {
     return (
@@ -74,10 +123,7 @@ const PaymentSuccess = () => {
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button asChild size="lg" className="gap-2">
-              <Link to="/create">
-                <FileText className="w-4 h-4" />
-                Try Again
-              </Link>
+              <Link to="/create"><FileText className="w-4 h-4" />Try Again</Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="gap-2">
               <Link to="/contact">Contact Support</Link>
@@ -94,7 +140,7 @@ const PaymentSuccess = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="max-w-lg w-full space-y-6 text-center">
+      <div className="max-w-2xl w-full space-y-6 text-center">
         <div className="mx-auto w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center">
           <CheckCircle className="w-10 h-10 text-accent" />
         </div>
@@ -102,41 +148,63 @@ const PaymentSuccess = () => {
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Payment Successful!</h1>
           <p className="text-muted-foreground">
-            Your payment of {formattedAmount} has been confirmed. Your paystub is ready to download.
+            Your payment of {formattedAmount} has been confirmed. Download your paystub below.
           </p>
         </div>
 
-        <Card className="border-accent/30 bg-accent/5">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-3 text-left">
-              <FileText className="w-5 h-5 text-accent shrink-0" />
-              <div>
-                <p className="font-medium text-foreground">Your paystub has been generated</p>
-                <p className="text-sm text-muted-foreground">
-                  Head to the creator to download it in PDF, PNG, or Excel format.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Download Buttons */}
+        {paystubId && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {([
+              { format: "pdf" as const, label: "PDF", icon: FileText, color: "destructive" },
+              { format: "png" as const, label: "PNG", icon: Image, color: "accent" },
+              { format: "xlsx" as const, label: "Excel", icon: FileSpreadsheet, color: "primary" },
+            ]).map(({ format, label, icon: Icon, color }) => (
+              <Card key={format} className="border-2 hover:border-primary/50 transition-colors">
+                <CardHeader className="text-center pb-2 pt-4">
+                  <div className={`mx-auto w-10 h-10 bg-${color}/10 rounded-lg flex items-center justify-center mb-1`}>
+                    <Icon className={`w-5 h-5 text-${color}`} />
+                  </div>
+                  <CardTitle className="text-base">{label}</CardTitle>
+                </CardHeader>
+                <CardContent className="pb-4">
+                  <Button
+                    className="w-full"
+                    size="sm"
+                    onClick={() => handleDownload(format)}
+                    disabled={isDownloading !== null}
+                  >
+                    {isDownloading === format ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <><Download className="w-4 h-4 mr-1" />{label}</>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button asChild size="lg" className="gap-2">
-            <Link to="/create?payment=success">
-              <Download className="w-4 h-4" />
-              Download Paystub
-            </Link>
-          </Button>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
           <Button asChild variant="outline" size="lg" className="gap-2">
             <Link to="/dashboard">
               <Home className="w-4 h-4" />
               Go to Dashboard
             </Link>
           </Button>
+          <Button asChild variant="ghost" size="lg" className="gap-2">
+            <Link to="/create">
+              <FileText className="w-4 h-4" />
+              Create Another
+            </Link>
+          </Button>
         </div>
 
         <p className="text-xs text-muted-foreground">
-          A confirmation has been sent to your email. If you have any issues, please{" "}
+          Your paystub is also available in your{" "}
+          <Link to="/dashboard" className="text-primary underline">dashboard</Link>.
+          If you have any issues, please{" "}
           <Link to="/contact" className="text-primary underline">contact support</Link>.
         </p>
       </div>
