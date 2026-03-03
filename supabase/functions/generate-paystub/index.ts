@@ -488,7 +488,7 @@ function buildPdf(data: PaystubRequest): Uint8Array {
   setColor(0.55, 0.58, 0.62);
   text("This is a computer-generated earnings statement.", ML, footerY + 4, 7);
   text(`Generated on ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`, ML, footerY - 6, 6.5);
-  textRight("PaystubPro  |  www.paystubpro.com", PW - MR, footerY + 4, 7);
+  textRight("PayStub Wizard  |  www.paystubwizard.com", PW - MR, footerY + 4, 7);
   setColor(0, 0, 0);
 
   // ─────────────────────────────────────────
@@ -543,6 +543,197 @@ function buildPdf(data: PaystubRequest): Uint8Array {
   return new TextEncoder().encode(pdf);
 }
 
+function buildSvg(data: PaystubRequest): string {
+  const regularPay = data.earnings.isHourly
+    ? data.earnings.regularHours * data.earnings.hourlyRate
+    : data.earnings.salaryAmount;
+  const overtimePay = data.earnings.overtimeHours * data.earnings.overtimeRate;
+  const grossPay =
+    regularPay + overtimePay + data.earnings.bonus + data.earnings.commission + data.earnings.tips + data.earnings.otherEarnings;
+  const totalDeductions =
+    data.deductions.federalTax + data.deductions.stateTax + data.deductions.socialSecurity +
+    data.deductions.medicare + data.deductions.retirement401k + data.deductions.healthInsurance + data.deductions.otherDeductions;
+  const netPay = grossPay - totalDeductions;
+
+  const W = 816; // 8.5in * 96dpi
+  const H = 1056; // 11in * 96dpi
+  const ML = 50;
+  const MR = 50;
+  const CW = W - ML - MR;
+
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  let y = 0;
+  const parts: string[] = [];
+  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`);
+  parts.push(`<rect width="${W}" height="${H}" fill="white"/>`);
+
+  // Header bar
+  const headerH = 90;
+  parts.push(`<rect x="0" y="0" width="${W}" height="${headerH}" fill="#19294F"/>`);
+  parts.push(`<rect x="0" y="${headerH - 3}" width="${W}" height="3" fill="#348B60"/>`);
+  parts.push(`<text x="${ML + 10}" y="38" fill="white" font-family="Helvetica,Arial,sans-serif" font-size="22" font-weight="bold">${esc(data.employer.companyName.toUpperCase())}</text>`);
+  const addrLine = [data.employer.addressLine1, data.employer.city, data.employer.state, data.employer.zipCode].filter(Boolean).join(", ");
+  parts.push(`<text x="${ML + 10}" y="58" fill="#D1D5DB" font-family="Helvetica,Arial,sans-serif" font-size="10">${esc(addrLine)}</text>`);
+  const contactParts: string[] = [];
+  if (data.employer.ein) contactParts.push(`EIN: ${data.employer.ein}`);
+  if (data.employer.phone) contactParts.push(`Tel: ${data.employer.phone}`);
+  if (data.employer.email) contactParts.push(data.employer.email);
+  if (contactParts.length > 0) {
+    parts.push(`<text x="${ML + 10}" y="73" fill="#D1D5DB" font-family="Helvetica,Arial,sans-serif" font-size="9">${esc(contactParts.join("   |   "))}</text>`);
+  }
+  parts.push(`<text x="${W - MR - 10}" y="38" fill="white" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="bold" text-anchor="end">EARNINGS STATEMENT</text>`);
+  parts.push(`<text x="${W - MR - 10}" y="56" fill="#D1D5DB" font-family="Helvetica,Arial,sans-serif" font-size="10" text-anchor="end">Pay Date: ${esc(fmtDate(data.payPeriod.payDate))}</text>`);
+  parts.push(`<text x="${W - MR - 10}" y="72" fill="#D1D5DB" font-family="Helvetica,Arial,sans-serif" font-size="10" text-anchor="end">Period: ${esc(fmtDateShort(data.payPeriod.periodStart))} - ${esc(fmtDateShort(data.payPeriod.periodEnd))}</text>`);
+
+  y = headerH + 20;
+
+  // Employee info box
+  const halfW = (CW - 16) / 2;
+  const boxH = 85;
+  parts.push(`<rect x="${ML}" y="${y}" width="${halfW}" height="${boxH}" fill="#F7F8FA" stroke="#DADDE3" stroke-width="1" rx="4"/>`);
+  parts.push(`<rect x="${ML + halfW + 16}" y="${y}" width="${halfW}" height="${boxH}" fill="#F7F8FA" stroke="#DADDE3" stroke-width="1" rx="4"/>`);
+  parts.push(`<text x="${ML + 12}" y="${y + 18}" fill="#5A636F" font-family="Helvetica,Arial,sans-serif" font-size="9" font-weight="bold">EMPLOYEE INFORMATION</text>`);
+  const empName = `${data.employee.firstName} ${data.employee.lastName}`;
+  parts.push(`<text x="${ML + 12}" y="${y + 36}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="bold">${esc(empName)}</text>`);
+  parts.push(`<text x="${ML + 12}" y="${y + 52}" fill="#333" font-family="Helvetica,Arial,sans-serif" font-size="10">${esc(data.employee.addressLine1 || "")}</text>`);
+  parts.push(`<text x="${ML + 12}" y="${y + 66}" fill="#333" font-family="Helvetica,Arial,sans-serif" font-size="10">${esc(`${data.employee.city || ""}, ${data.employee.state || ""} ${data.employee.zipCode || ""}`)}</text>`);
+  if (data.employee.ssnLastFour) {
+    parts.push(`<text x="${ML + 12}" y="${y + 80}" fill="#333" font-family="Helvetica,Arial,sans-serif" font-size="10">SSN: XXX-XX-${esc(data.employee.ssnLastFour)}</text>`);
+  }
+
+  const ppX = ML + halfW + 28;
+  parts.push(`<text x="${ppX}" y="${y + 18}" fill="#5A636F" font-family="Helvetica,Arial,sans-serif" font-size="9" font-weight="bold">PAY PERIOD DETAILS</text>`);
+  parts.push(`<text x="${ppX}" y="${y + 36}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="10"><tspan font-weight="bold">Frequency: </tspan>${esc(freqLabel(data.payPeriod.frequency))}</text>`);
+  parts.push(`<text x="${ppX}" y="${y + 52}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="10"><tspan font-weight="bold">Pay Date: </tspan>${esc(fmtDate(data.payPeriod.payDate))}</text>`);
+  if (data.employee.employeeId) {
+    parts.push(`<text x="${ppX}" y="${y + 66}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="10"><tspan font-weight="bold">Employee ID: </tspan>${esc(data.employee.employeeId)}</text>`);
+  }
+  parts.push(`<text x="${ppX}" y="${y + 80}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="10"><tspan font-weight="bold">State: </tspan>${esc(data.stateCode || data.employer.state)}</text>`);
+
+  y += boxH + 24;
+
+  // Earnings table
+  const rowH = 24;
+  // Header row
+  parts.push(`<rect x="${ML}" y="${y}" width="${CW}" height="${rowH}" fill="#19294F"/>`);
+  parts.push(`<text x="${ML + 10}" y="${y + 16}" fill="white" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="bold">EARNINGS DESCRIPTION</text>`);
+  parts.push(`<text x="${ML + 280}" y="${y + 16}" fill="white" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="bold">HOURS</text>`);
+  parts.push(`<text x="${ML + 390}" y="${y + 16}" fill="white" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="bold">RATE</text>`);
+  parts.push(`<text x="${W - MR - 10}" y="${y + 16}" fill="white" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="bold" text-anchor="end">AMOUNT</text>`);
+  y += rowH;
+
+  interface ERow { label: string; hours: string; rate: string; amount: number }
+  const eRows: ERow[] = [];
+  if (data.earnings.isHourly) {
+    eRows.push({ label: "Regular Pay", hours: data.earnings.regularHours.toFixed(2), rate: fmt(data.earnings.hourlyRate), amount: regularPay });
+    if (data.earnings.overtimeHours > 0) {
+      eRows.push({ label: "Overtime Pay (1.5x)", hours: data.earnings.overtimeHours.toFixed(2), rate: fmt(data.earnings.overtimeRate), amount: overtimePay });
+    }
+  } else {
+    eRows.push({ label: "Salary", hours: "—", rate: "—", amount: regularPay });
+  }
+  if (data.earnings.bonus > 0) eRows.push({ label: "Bonus", hours: "—", rate: "—", amount: data.earnings.bonus });
+  if (data.earnings.commission > 0) eRows.push({ label: "Commission", hours: "—", rate: "—", amount: data.earnings.commission });
+  if (data.earnings.tips > 0) eRows.push({ label: "Tips", hours: "—", rate: "—", amount: data.earnings.tips });
+  if (data.earnings.otherEarnings > 0) eRows.push({ label: "Other Earnings", hours: "—", rate: "—", amount: data.earnings.otherEarnings });
+
+  eRows.forEach((row, i) => {
+    if (i % 2 === 0) parts.push(`<rect x="${ML}" y="${y}" width="${CW}" height="${rowH}" fill="#F8F9FC"/>`);
+    parts.push(`<text x="${ML + 10}" y="${y + 16}" fill="#262F3D" font-family="Helvetica,Arial,sans-serif" font-size="11">${esc(row.label)}</text>`);
+    parts.push(`<text x="${ML + 300}" y="${y + 16}" fill="#262F3D" font-family="Helvetica,Arial,sans-serif" font-size="11" text-anchor="middle">${esc(row.hours)}</text>`);
+    parts.push(`<text x="${ML + 410}" y="${y + 16}" fill="#262F3D" font-family="Helvetica,Arial,sans-serif" font-size="11" text-anchor="middle">${esc(row.rate)}</text>`);
+    parts.push(`<text x="${W - MR - 10}" y="${y + 16}" fill="#262F3D" font-family="Helvetica,Arial,sans-serif" font-size="11" text-anchor="end">${esc(fmt(row.amount))}</text>`);
+    y += rowH;
+  });
+
+  // Gross pay row
+  parts.push(`<rect x="${ML}" y="${y}" width="${CW}" height="${rowH}" fill="#ECEEF2"/>`);
+  parts.push(`<text x="${ML + 10}" y="${y + 16}" fill="#19294F" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="bold">GROSS PAY</text>`);
+  parts.push(`<text x="${W - MR - 10}" y="${y + 16}" fill="#19294F" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="bold" text-anchor="end">${esc(fmt(grossPay))}</text>`);
+  y += rowH + 16;
+
+  // Deductions table
+  parts.push(`<rect x="${ML}" y="${y}" width="${CW}" height="${rowH}" fill="#19294F"/>`);
+  parts.push(`<text x="${ML + 10}" y="${y + 16}" fill="white" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="bold">DEDUCTIONS</text>`);
+  parts.push(`<text x="${ML + CW * 0.55}" y="${y + 16}" fill="white" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="bold" text-anchor="end">CURRENT</text>`);
+  if (data.includeYTD) {
+    parts.push(`<text x="${W - MR - 10}" y="${y + 16}" fill="white" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="bold" text-anchor="end">YTD</text>`);
+  }
+  y += rowH;
+
+  interface DRow { label: string; current: number; ytd: number }
+  const dRows: DRow[] = [];
+  if (data.deductions.federalTax > 0) dRows.push({ label: "Federal Income Tax", current: data.deductions.federalTax, ytd: data.ytd.federalTax });
+  if (data.deductions.stateTax > 0) dRows.push({ label: `State Income Tax (${data.stateCode})`, current: data.deductions.stateTax, ytd: data.ytd.stateTax });
+  if (data.deductions.socialSecurity > 0) dRows.push({ label: "Social Security (OASDI)", current: data.deductions.socialSecurity, ytd: data.ytd.socialSecurity });
+  if (data.deductions.medicare > 0) dRows.push({ label: "Medicare", current: data.deductions.medicare, ytd: data.ytd.medicare });
+  if (data.deductions.retirement401k > 0) dRows.push({ label: "401(k) Contribution", current: data.deductions.retirement401k, ytd: 0 });
+  if (data.deductions.healthInsurance > 0) dRows.push({ label: "Health Insurance", current: data.deductions.healthInsurance, ytd: 0 });
+  if (data.deductions.otherDeductions > 0) dRows.push({ label: "Other Deductions", current: data.deductions.otherDeductions, ytd: 0 });
+
+  dRows.forEach((row, i) => {
+    if (i % 2 === 0) parts.push(`<rect x="${ML}" y="${y}" width="${CW}" height="${rowH}" fill="#F8F9FC"/>`);
+    parts.push(`<text x="${ML + 10}" y="${y + 16}" fill="#262F3D" font-family="Helvetica,Arial,sans-serif" font-size="11">${esc(row.label)}</text>`);
+    parts.push(`<text x="${ML + CW * 0.55}" y="${y + 16}" fill="#262F3D" font-family="Helvetica,Arial,sans-serif" font-size="11" text-anchor="end">${esc(fmt(row.current))}</text>`);
+    if (data.includeYTD && row.ytd > 0) {
+      parts.push(`<text x="${W - MR - 10}" y="${y + 16}" fill="#262F3D" font-family="Helvetica,Arial,sans-serif" font-size="11" text-anchor="end">${esc(fmt(row.ytd))}</text>`);
+    }
+    y += rowH;
+  });
+
+  // Total deductions
+  parts.push(`<rect x="${ML}" y="${y}" width="${CW}" height="${rowH}" fill="#ECEEF2"/>`);
+  parts.push(`<text x="${ML + 10}" y="${y + 16}" fill="#19294F" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="bold">TOTAL DEDUCTIONS</text>`);
+  parts.push(`<text x="${ML + CW * 0.55}" y="${y + 16}" fill="#19294F" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="bold" text-anchor="end">${esc(fmt(totalDeductions))}</text>`);
+  y += rowH + 16;
+
+  // Net pay box
+  const netBoxH = 56;
+  parts.push(`<rect x="${ML}" y="${y}" width="${CW}" height="${netBoxH}" fill="#19294F" rx="4"/>`);
+  parts.push(`<rect x="${ML}" y="${y}" width="5" height="${netBoxH}" fill="#348B60" rx="2"/>`);
+  parts.push(`<text x="${ML + 22}" y="${y + 24}" fill="#D1D5DB" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="bold">NET PAY</text>`);
+  parts.push(`<text x="${ML + 22}" y="${y + 42}" fill="white" font-family="Helvetica,Arial,sans-serif" font-size="9">Amount deposited to your account</text>`);
+  parts.push(`<text x="${W - MR - 16}" y="${y + 36}" fill="white" font-family="Helvetica,Arial,sans-serif" font-size="26" font-weight="bold" text-anchor="end">${esc(fmt(netPay))}</text>`);
+  y += netBoxH + 20;
+
+  // YTD Summary
+  if (data.includeYTD) {
+    parts.push(`<text x="${ML}" y="${y}" fill="#5A636F" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="bold">YEAR-TO-DATE SUMMARY</text>`);
+    y += 6;
+    parts.push(`<line x1="${ML}" y1="${y}" x2="${W - MR}" y2="${y}" stroke="#DADDE3" stroke-width="1"/>`);
+    y += 18;
+    const ytdItems = [
+      { label: "YTD Gross Pay", value: data.ytd.grossPay },
+      { label: "YTD Federal Tax", value: data.ytd.federalTax },
+      { label: "YTD State Tax", value: data.ytd.stateTax },
+      { label: "YTD Social Security", value: data.ytd.socialSecurity },
+      { label: "YTD Medicare", value: data.ytd.medicare },
+      { label: "YTD Net Pay", value: data.ytd.netPay },
+    ].filter(item => item.value > 0);
+    const colW = CW / 3;
+    ytdItems.forEach((item, i) => {
+      const col = i % 3;
+      const xBase = ML + col * colW;
+      if (col === 0 && i > 0) y += 20;
+      parts.push(`<text x="${xBase + 8}" y="${y}" fill="#737983" font-family="Helvetica,Arial,sans-serif" font-size="9">${esc(item.label)}</text>`);
+      parts.push(`<text x="${xBase + 130}" y="${y}" fill="#1A1E28" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="bold">${esc(fmt(item.value))}</text>`);
+    });
+    y += 24;
+  }
+
+  // Footer
+  const footerY = H - 40;
+  parts.push(`<line x1="${ML}" y1="${footerY}" x2="${W - MR}" y2="${footerY}" stroke="#DADDE3" stroke-width="1"/>`);
+  parts.push(`<rect x="0" y="${H - 6}" width="${W}" height="6" fill="#19294F"/>`);
+  parts.push(`<rect x="0" y="${H - 8}" width="${W / 3}" height="2" fill="#348B60"/>`);
+  parts.push(`<text x="${ML}" y="${footerY + 16}" fill="#8C9198" font-family="Helvetica,Arial,sans-serif" font-size="8">This is a computer-generated earnings statement.</text>`);
+  parts.push(`<text x="${W - MR}" y="${footerY + 16}" fill="#8C9198" font-family="Helvetica,Arial,sans-serif" font-size="8" text-anchor="end">PayStub Wizard</text>`);
+
+  parts.push("</svg>");
+  return parts.join("\n");
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -556,7 +747,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const data: PaystubRequest = await req.json();
+    const data = await req.json();
+    const format = data.format || "pdf";
 
     if (!data.employer?.companyName || !data.employee?.firstName) {
       return new Response(
@@ -568,7 +760,29 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const pdfBytes = buildPdf(data);
+    if (format === "png") {
+      const { Resvg, initWasm } = await import("npm:@aspect-dev/resvg-wasm@1.0.4");
+      const wasmUrl = "https://unpkg.com/@aspect-dev/resvg-wasm@1.0.4/index_bg.wasm";
+      const wasmResp = await fetch(wasmUrl);
+      await initWasm(wasmResp);
+
+      const svg = buildSvg(data as PaystubRequest);
+      const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1632 } });
+      const rendered = resvg.render();
+      const pngBuffer = rendered.asPng();
+
+      return new Response(pngBuffer, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "image/png",
+          "Content-Disposition": `attachment; filename="paystub_${data.employee.firstName}_${data.employee.lastName}.png"`,
+        },
+      });
+    }
+
+    // Default: PDF
+    const pdfBytes = buildPdf(data as PaystubRequest);
 
     return new Response(pdfBytes, {
       status: 200,
@@ -579,9 +793,9 @@ Deno.serve(async (req: Request) => {
       },
     });
   } catch (error) {
-    console.error("PDF generation error:", error);
+    console.error("Generation error:", error);
     return new Response(
-      JSON.stringify({ error: "Failed to generate PDF", details: String(error) }),
+      JSON.stringify({ error: "Failed to generate paystub", details: String(error) }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
