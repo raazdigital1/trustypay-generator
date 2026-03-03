@@ -20,7 +20,6 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
   );
 
-  // Service role client for coupon operations (bypasses RLS)
   const supabaseAdmin = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -38,7 +37,6 @@ Deno.serve(async (req) => {
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated");
 
-    // Validate email format server-side
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(user.email) || user.email.length > 255) {
       throw new Error("Invalid email address");
@@ -61,25 +59,24 @@ Deno.serve(async (req) => {
         .single();
 
       if (couponErr || !coupon) {
+        // Return 200 with error field so frontend can read it
         return new Response(
           JSON.stringify({ error: "Invalid or expired coupon code" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
         );
       }
 
-      // Check expiration
       if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
         return new Response(
           JSON.stringify({ error: "This coupon has expired" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
         );
       }
 
-      // Check max uses
       if (coupon.max_uses !== null && coupon.current_uses >= coupon.max_uses) {
         return new Response(
           JSON.stringify({ error: "This coupon has reached its usage limit" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
         );
       }
 
@@ -88,7 +85,6 @@ Deno.serve(async (req) => {
       if (coupon.discount_type === "percentage") {
         discountPercent = coupon.discount_value;
       } else {
-        // Fixed amount in dollars → cents
         discountAmountCents = Math.round(coupon.discount_value * 100);
       }
     }
@@ -107,17 +103,25 @@ Deno.serve(async (req) => {
     // Build Stripe coupon if discount applies
     let stripeCouponId: string | undefined;
     if (discountPercent !== null || discountAmountCents !== null) {
-      const couponParams: Stripe.CouponCreateParams = {
-        duration: "once",
-        ...(discountPercent !== null
-          ? { percent_off: discountPercent }
-          : { amount_off: discountAmountCents!, currency: "usd" }),
-      };
-      const stripeCoupon = await stripe.coupons.create(couponParams);
-      stripeCouponId = stripeCoupon.id;
+      try {
+        const couponParams: Stripe.CouponCreateParams = {
+          duration: "once",
+          ...(discountPercent !== null
+            ? { percent_off: discountPercent }
+            : { amount_off: discountAmountCents!, currency: "usd" }),
+        };
+        const stripeCoupon = await stripe.coupons.create(couponParams);
+        stripeCouponId = stripeCoupon.id;
+      } catch (stripeErr) {
+        console.error("Stripe coupon creation failed:", stripeErr);
+        return new Response(
+          JSON.stringify({ error: "Failed to apply discount. Please try again without coupon." }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
     }
 
-    // Create one-time payment session
+    // Create checkout session
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
@@ -134,19 +138,24 @@ Deno.serve(async (req) => {
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
-    // Increment coupon usage
+    // Increment coupon usage (non-blocking, non-critical)
     if (couponId) {
-      await supabaseAdmin.rpc("increment_coupon_usage" as never, { coupon_uuid: couponId } as never).catch(() => {
-        // Non-critical: log but don't fail the checkout
-        console.error("Failed to increment coupon usage");
-      });
-
-      // Fallback: direct update if RPC doesn't exist yet
-      await supabaseAdmin
+      supabaseAdmin
         .from("coupons")
-        .update({ current_uses: (await supabaseAdmin.from("coupons").select("current_uses").eq("id", couponId).single()).data?.current_uses + 1 })
+        .select("current_uses")
         .eq("id", couponId)
-        .catch(() => {});
+        .single()
+        .then(({ data: couponData }) => {
+          if (couponData) {
+            supabaseAdmin
+              .from("coupons")
+              .update({ current_uses: (couponData.current_uses || 0) + 1 })
+              .eq("id", couponId)
+              .then(() => console.log("Coupon usage incremented"))
+              .catch((e) => console.error("Coupon increment failed:", e));
+          }
+        })
+        .catch((e) => console.error("Coupon fetch for increment failed:", e));
     }
 
     return new Response(JSON.stringify({ url: session.url }), {
@@ -154,9 +163,10 @@ Deno.serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    console.error("Payment function error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: 200,
     });
   }
 });
