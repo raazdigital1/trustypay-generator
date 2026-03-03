@@ -6,10 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { FileText, Plus, History, Settings, LogOut, CreditCard, Users, Loader2, Eye, Download, Lock, User, Bell } from "lucide-react";
+import { FileText, Plus, History, Settings, LogOut, CreditCard, Users, Loader2, Eye, Download, Lock, User, Bell, DollarSign, CheckCircle, XCircle, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 const PRO_PRICE_ID = "price_1T6P0BGf3K1hj4vvDSuYmNEv";
 
@@ -22,6 +23,16 @@ interface PaystubRecord {
   created_at: string;
 }
 
+interface TransactionRecord {
+  id: string;
+  amount: number;
+  currency: string | null;
+  status: string | null;
+  description: string | null;
+  stripe_payment_intent_id: string | null;
+  created_at: string;
+}
+
 const Dashboard = () => {
   const { user, loading, signOut, resetPassword } = useAuth();
   const navigate = useNavigate();
@@ -30,6 +41,8 @@ const Dashboard = () => {
   const [checkingOut, setCheckingOut] = useState(false);
   const [paystubs, setPaystubs] = useState<PaystubRecord[]>([]);
   const [loadingPaystubs, setLoadingPaystubs] = useState(true);
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(true);
 
   // Profile editing
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
@@ -75,6 +88,22 @@ const Dashboard = () => {
     if (data) setFullName(data.full_name || "");
   }, [user]);
 
+  const fetchTransactions = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("id, amount, currency, status, description, stripe_payment_intent_id, created_at")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      setTransactions(data || []);
+    } catch {
+      setTransactions([]);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!loading && !user) {
       navigate("/login");
@@ -83,8 +112,9 @@ const Dashboard = () => {
       checkSubscription();
       fetchPaystubs();
       fetchProfile();
+      fetchTransactions();
     }
-  }, [user, loading, navigate, checkSubscription, fetchPaystubs, fetchProfile]);
+  }, [user, loading, navigate, checkSubscription, fetchPaystubs, fetchProfile, fetchTransactions]);
 
   useEffect(() => {
     const checkout = searchParams.get("checkout");
@@ -280,6 +310,77 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Payment History */}
+        <Card className="border-border mb-8">
+          <CardHeader>
+            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-2">
+              <DollarSign className="w-6 h-6 text-primary" />
+            </div>
+            <CardTitle className="text-lg">Payment History</CardTitle>
+            <CardDescription>Your past transactions and payment status</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingTransactions ? (
+              <Skeleton className="h-24 w-full" />
+            ) : transactions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No transactions yet</p>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {transactions.map((tx) => {
+                  const statusIcon =
+                    tx.status === "succeeded" || tx.status === "completed" ? (
+                      <CheckCircle className="w-4 h-4 text-accent" />
+                    ) : tx.status === "pending" ? (
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-destructive" />
+                    );
+
+                  const statusVariant: "default" | "secondary" | "destructive" | "outline" =
+                    tx.status === "succeeded" || tx.status === "completed"
+                      ? "default"
+                      : tx.status === "pending"
+                        ? "secondary"
+                        : "destructive";
+
+                  return (
+                    <div
+                      key={tx.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border"
+                    >
+                      <div className="flex items-center gap-3">
+                        {statusIcon}
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {tx.description || "Paystub Purchase"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(tx.created_at).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={statusVariant} className="capitalize text-xs">
+                          {tx.status || "unknown"}
+                        </Badge>
+                        <span className="text-sm font-semibold text-foreground">
+                          {formatCurrency(tx.amount)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Subscription & Settings */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
