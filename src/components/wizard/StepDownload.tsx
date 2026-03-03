@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Loader2 } from "lucide-react";
+import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Loader2, Tag, X } from "lucide-react";
 import { PaystubData } from "@/types/paystub";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -19,6 +20,9 @@ const StepDownload = ({ data }: StepDownloadProps) => {
   const [isPaying, setIsPaying] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   // Check if returning from successful payment
   useEffect(() => {
@@ -40,10 +44,16 @@ const StepDownload = ({ data }: StepDownloadProps) => {
     setIsPaying(true);
     try {
       const { data: funcData, error } = await supabase.functions.invoke("create-payment", {
-        body: {},
+        body: { coupon_code: appliedCoupon || undefined },
       });
 
       if (error) throw error;
+      if (funcData?.error) {
+        // Coupon validation error from the edge function
+        setCouponError(funcData.error);
+        setAppliedCoupon(null);
+        return;
+      }
       if (funcData?.url) {
         window.location.href = funcData.url;
       } else {
@@ -131,6 +141,12 @@ const StepDownload = ({ data }: StepDownloadProps) => {
           isPaying={isPaying}
           isAuthenticated={!!user}
           onPay={handlePayAndDownload}
+          couponCode={couponCode}
+          setCouponCode={setCouponCode}
+          appliedCoupon={appliedCoupon}
+          setAppliedCoupon={setAppliedCoupon}
+          couponError={couponError}
+          setCouponError={setCouponError}
         />
       ) : (
         <DownloadSection
@@ -174,9 +190,32 @@ interface PaymentSectionProps {
   isPaying: boolean;
   isAuthenticated: boolean;
   onPay: () => void;
+  couponCode: string;
+  setCouponCode: (v: string) => void;
+  appliedCoupon: string | null;
+  setAppliedCoupon: (v: string | null) => void;
+  couponError: string | null;
+  setCouponError: (v: string | null) => void;
 }
 
-const PaymentSection = ({ isPaying, isAuthenticated, onPay }: PaymentSectionProps) => (
+const PaymentSection = ({
+  isPaying, isAuthenticated, onPay,
+  couponCode, setCouponCode, appliedCoupon, setAppliedCoupon, couponError, setCouponError,
+}: PaymentSectionProps) => {
+  const handleApplyCoupon = () => {
+    const code = couponCode.trim().toUpperCase();
+    if (!code) return;
+    setCouponError(null);
+    setAppliedCoupon(code);
+    setCouponCode("");
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponError(null);
+  };
+
+  return (
   <div className="space-y-6">
     <Card className="border-primary/50 shadow-elegant">
       <CardHeader className="text-center pb-4">
@@ -211,6 +250,37 @@ const PaymentSection = ({ isPaying, isAuthenticated, onPay }: PaymentSectionProp
             <CheckCircle className="w-4 h-4 text-accent" />
             <span>Instant download — no subscription required</span>
           </div>
+        </div>
+
+        {/* Coupon Code */}
+        <div className="space-y-2">
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between bg-accent/10 border border-accent/30 rounded-lg px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4 text-accent" />
+                <span className="text-sm font-medium text-foreground">
+                  Coupon <code className="font-mono">{appliedCoupon}</code> applied
+                </span>
+              </div>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleRemoveCoupon}>
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                placeholder="Coupon code"
+                value={couponCode}
+                onChange={(e) => { setCouponCode(e.target.value); setCouponError(null); }}
+                className="font-mono uppercase"
+                onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+              />
+              <Button variant="outline" onClick={handleApplyCoupon} disabled={!couponCode.trim()}>
+                Apply
+              </Button>
+            </div>
+          )}
+          {couponError && <p className="text-xs text-destructive">{couponError}</p>}
         </div>
 
         <div className="space-y-4 pt-2">
@@ -268,7 +338,8 @@ const PaymentSection = ({ isPaying, isAuthenticated, onPay }: PaymentSectionProp
       </CardContent>
     </Card>
   </div>
-);
+  );
+};
 
 /* ---------- Download Section (after payment) ---------- */
 interface DownloadSectionProps {
