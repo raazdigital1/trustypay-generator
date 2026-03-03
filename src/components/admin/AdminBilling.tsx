@@ -15,7 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { DollarSign, Users, CreditCard, AlertCircle, Search, Edit, RefreshCw } from "lucide-react";
+import { DollarSign, Users, CreditCard, Search, Edit, RefreshCw, Receipt } from "lucide-react";
 
 interface SubscriptionRow {
   id: string;
@@ -30,6 +30,7 @@ interface SubscriptionRow {
   created_at: string;
   updated_at: string;
   profile?: { email: string | null; full_name: string | null };
+  total_paystubs: number;
 }
 
 const statusColors: Record<string, string> = {
@@ -49,7 +50,7 @@ const AdminBilling = () => {
   const [editStubs, setEditStubs] = useState("");
 
   const { data: subscriptions = [], isLoading } = useQuery({
-    queryKey: ["admin-billing"],
+    queryKey: ["admin-customers"],
     queryFn: async () => {
       const { data: subs, error } = await supabase
         .from("subscriptions")
@@ -57,15 +58,29 @@ const AdminBilling = () => {
         .order("created_at", { ascending: false });
       if (error) throw error;
 
-      // Fetch profiles for user info
       const userIds = [...new Set(subs.map((s) => s.user_id))];
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, email, full_name")
         .in("user_id", userIds);
 
+      // Count paystubs per user
+      const { data: paystubCounts } = await supabase
+        .from("paystubs")
+        .select("user_id")
+        .in("user_id", userIds);
+
+      const countMap = new Map<string, number>();
+      paystubCounts?.forEach((p) => {
+        countMap.set(p.user_id, (countMap.get(p.user_id) || 0) + 1);
+      });
+
       const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) ?? []);
-      return subs.map((s) => ({ ...s, profile: profileMap.get(s.user_id) })) as SubscriptionRow[];
+      return subs.map((s) => ({
+        ...s,
+        profile: profileMap.get(s.user_id),
+        total_paystubs: countMap.get(s.user_id) || 0,
+      })) as SubscriptionRow[];
     },
   });
 
@@ -80,8 +95,8 @@ const AdminBilling = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
-      toast({ title: "Subscription updated" });
+      queryClient.invalidateQueries({ queryKey: ["admin-customers"] });
+      toast({ title: "Customer updated" });
       setEditSub(null);
     },
     onError: (err: any) => {
@@ -119,7 +134,7 @@ const AdminBilling = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Subscriptions</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Customers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent><p className="text-2xl font-bold">{stats.total}</p></CardContent>
@@ -140,17 +155,17 @@ const AdminBilling = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Past Due</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Paystubs</CardTitle>
+            <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent><p className="text-2xl font-bold text-yellow-600">{stats.pastDue}</p></CardContent>
+          <CardContent><p className="text-2xl font-bold">{subscriptions.reduce((sum, s) => sum + s.total_paystubs, 0)}</p></CardContent>
         </Card>
       </div>
 
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Customer Billing</CardTitle>
+          <CardTitle>Customers</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -184,50 +199,64 @@ const AdminBilling = () => {
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Stubs This Month</TableHead>
-                    <TableHead>Stripe Customer</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+                 <TableHeader>
+                   <TableRow>
+                     <TableHead>Customer</TableHead>
+                     <TableHead>Plan</TableHead>
+                     <TableHead>Status</TableHead>
+                     <TableHead>Paystubs Generated</TableHead>
+                     <TableHead>This Month</TableHead>
+                     <TableHead>Stripe ID</TableHead>
+                     <TableHead>Subscription ID</TableHead>
+                     <TableHead>Period End</TableHead>
+                     <TableHead>Joined</TableHead>
+                     <TableHead className="text-right">Actions</TableHead>
+                   </TableRow>
+                 </TableHeader>
                 <TableBody>
-                  {filtered.map((sub) => (
-                    <TableRow key={sub.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-sm">{sub.profile?.full_name || "—"}</p>
-                          <p className="text-xs text-muted-foreground">{sub.profile?.email || sub.user_id.slice(0, 8)}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">{sub.plan_type ?? "free"}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={statusColors[sub.status ?? ""] ?? ""}>
-                          {sub.status ?? "unknown"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{sub.stubs_generated_this_month ?? 0}</TableCell>
-                      <TableCell>
-                        <span className="text-xs font-mono text-muted-foreground">
-                          {sub.stripe_customer_id || "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {new Date(sub.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(sub)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                   {filtered.map((sub) => (
+                     <TableRow key={sub.id}>
+                       <TableCell>
+                         <div>
+                           <p className="font-medium text-sm">{sub.profile?.full_name || "—"}</p>
+                           <p className="text-xs text-muted-foreground">{sub.profile?.email || sub.user_id.slice(0, 8)}</p>
+                         </div>
+                       </TableCell>
+                       <TableCell>
+                         <Badge variant="outline" className="capitalize">{sub.plan_type ?? "free"}</Badge>
+                       </TableCell>
+                       <TableCell>
+                         <Badge variant="outline" className={statusColors[sub.status ?? ""] ?? ""}>
+                           {sub.status ?? "unknown"}
+                         </Badge>
+                       </TableCell>
+                       <TableCell>
+                         <span className="font-semibold">{sub.total_paystubs}</span>
+                       </TableCell>
+                       <TableCell>{sub.stubs_generated_this_month ?? 0}</TableCell>
+                       <TableCell>
+                         <span className="text-xs font-mono text-muted-foreground">
+                           {sub.stripe_customer_id || "—"}
+                         </span>
+                       </TableCell>
+                       <TableCell>
+                         <span className="text-xs font-mono text-muted-foreground">
+                           {sub.stripe_subscription_id || "—"}
+                         </span>
+                       </TableCell>
+                       <TableCell className="text-xs text-muted-foreground">
+                         {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : "—"}
+                       </TableCell>
+                       <TableCell className="text-xs text-muted-foreground">
+                         {new Date(sub.created_at).toLocaleDateString()}
+                       </TableCell>
+                       <TableCell className="text-right">
+                         <Button variant="ghost" size="icon" onClick={() => openEdit(sub)}>
+                           <Edit className="h-4 w-4" />
+                         </Button>
+                       </TableCell>
+                     </TableRow>
+                   ))}
                 </TableBody>
               </Table>
             </div>
