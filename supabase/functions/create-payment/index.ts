@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: PAYSTUB_PRICE_ID, quantity: 1 }],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/create?payment=success`,
+      success_url: `${req.headers.get("origin")}/payment-success`,
       cancel_url: `${req.headers.get("origin")}/create?payment=canceled`,
       metadata: couponId ? { coupon_id: couponId } : undefined,
     };
