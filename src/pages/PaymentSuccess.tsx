@@ -193,8 +193,7 @@ const PaymentSuccess = () => {
                 <div className="text-left">
                   <p className="font-semibold text-foreground">Check Your Email</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    We've created an account for you and sent a login link to your email. 
-                    Use it to access your dashboard and download your paystub anytime.
+                    We've sent a link to your email. Click it to set your password and access your dashboard, where you can download your paystub anytime.
                   </p>
                 </div>
               </div>
