@@ -78,7 +78,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("Check subscription error:", error);
+    return new Response(JSON.stringify({ error: "An error occurred while checking subscription status" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

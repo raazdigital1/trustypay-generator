@@ -18,22 +18,23 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
   );
 
-  const supabaseAdmin = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
-
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
 
     const token = authHeader.replace("Bearer ", "");
     const { data, error: authError } = await supabaseClient.auth.getUser(token);
-    if (authError) throw new Error(`Authentication error: ${authError.message}`);
+    if (authError) throw new Error("Authentication failed");
 
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated");
 
+    // Create an authenticated client that respects RLS
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
     const body = await req.json().catch(() => ({}));
     const sessionId = typeof body.session_id === "string" ? body.session_id.trim() : null;
 
@@ -64,14 +65,14 @@ Deno.serve(async (req) => {
     // If paid and paystub_id is in metadata, mark paystub as completed
     if (paid && session.metadata?.paystub_id) {
       const paystubId = session.metadata.paystub_id;
-      await supabaseAdmin
+      await supabaseAuth
         .from("paystubs")
         .update({ status: "completed", is_watermarked: false })
         .eq("id", paystubId)
         .eq("user_id", user.id);
 
-      // Record transaction
-      await supabaseAdmin.from("transactions").insert({
+      // Record transaction (RLS enforces user_id = auth.uid())
+      await supabaseAuth.from("transactions").insert({
         user_id: user.id,
         paystub_id: paystubId,
         amount: (session.amount_total || 499) / 100,
@@ -95,7 +96,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Verify payment error:", error);
     return new Response(
-      JSON.stringify({ verified: false, error: error.message }),
+      JSON.stringify({ verified: false, error: "An error occurred while verifying payment" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   }
