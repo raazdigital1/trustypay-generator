@@ -15,7 +15,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { DollarSign, Users, CreditCard, Search, Edit, RefreshCw, Receipt } from "lucide-react";
+import { DollarSign, Users, CreditCard, Search, Edit, RefreshCw, Receipt, Eye } from "lucide-react";
+import CustomerDetailView from "./CustomerDetailView";
 
 interface SubscriptionRow {
   id: string;
@@ -48,6 +49,7 @@ const AdminBilling = () => {
   const [editPlan, setEditPlan] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [editStubs, setEditStubs] = useState("");
+  const [detailSub, setDetailSub] = useState<SubscriptionRow | null>(null);
 
   const { data: subscriptions = [], isLoading } = useQuery({
     queryKey: ["admin-customers"],
@@ -215,7 +217,7 @@ const AdminBilling = () => {
                  </TableHeader>
                 <TableBody>
                    {filtered.map((sub) => (
-                     <TableRow key={sub.id}>
+                     <TableRow key={sub.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailSub(sub)}>
                        <TableCell>
                          <div>
                            <p className="font-medium text-sm">{sub.profile?.full_name || "—"}</p>
@@ -251,9 +253,14 @@ const AdminBilling = () => {
                          {new Date(sub.created_at).toLocaleDateString()}
                        </TableCell>
                        <TableCell className="text-right">
-                         <Button variant="ghost" size="icon" onClick={() => openEdit(sub)}>
-                           <Edit className="h-4 w-4" />
-                         </Button>
+                         <div className="flex items-center justify-end gap-1">
+                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDetailSub(sub); }} title="View details">
+                             <Eye className="h-4 w-4" />
+                           </Button>
+                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(sub); }} title="Edit">
+                             <Edit className="h-4 w-4" />
+                           </Button>
+                         </div>
                        </TableCell>
                      </TableRow>
                    ))}
@@ -319,6 +326,20 @@ const AdminBilling = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Customer Detail View */}
+      {detailSub && (
+        <CustomerDetailView
+          open={!!detailSub}
+          onOpenChange={(open) => !open && setDetailSub(null)}
+          userId={detailSub.user_id}
+          customerName={detailSub.profile?.full_name ?? null}
+          customerEmail={detailSub.profile?.email ?? null}
+          planType={detailSub.plan_type}
+          status={detailSub.status}
+          stripeCustomerId={detailSub.stripe_customer_id}
+          stripeSubscriptionId={detailSub.stripe_subscription_id}
+        />
+      )}
     </div>
   );
 };
