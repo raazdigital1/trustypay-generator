@@ -9,12 +9,14 @@ import { CreditCard, RefreshCw } from "lucide-react";
 interface Transaction {
   id: string;
   user_id: string;
+  paystub_id: string | null;
   amount: number;
   currency: string | null;
   status: string | null;
   description: string | null;
   stripe_payment_intent_id: string | null;
   created_at: string;
+  profile?: { email: string | null; full_name: string | null };
 }
 
 const AdminTransactions = () => {
@@ -30,7 +32,15 @@ const AdminTransactions = () => {
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
-      setTransactions(data || []);
+
+      const userIds = [...new Set((data || []).map((t) => t.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, email, full_name")
+        .in("user_id", userIds);
+      const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) ?? []);
+
+      setTransactions((data || []).map((t) => ({ ...t, profile: profileMap.get(t.user_id) })));
     } catch (err) {
       console.error("Fetch transactions error:", err);
     } finally {
@@ -45,6 +55,7 @@ const AdminTransactions = () => {
   const statusBadge = (status: string | null) => {
     switch (status) {
       case "completed":
+      case "succeeded":
         return <Badge variant="default">Completed</Badge>;
       case "pending":
         return <Badge variant="secondary">Pending</Badge>;
@@ -82,31 +93,49 @@ const AdminTransactions = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
+                    <TableHead>Customer</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead>Stripe ID</TableHead>
+                    <TableHead>Stripe Payment Intent</TableHead>
+                    <TableHead>Paystub ID</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {transactions.map((t) => (
                     <TableRow key={t.id}>
-                      <TableCell className="font-medium">
-                        {new Date(t.created_at).toLocaleDateString()}
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {new Date(t.created_at).toLocaleDateString("en-US", {
+                          month: "short", day: "numeric", year: "numeric",
+                          hour: "numeric", minute: "2-digit",
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-sm font-medium">{t.profile?.full_name || "—"}</p>
+                          <p className="text-xs text-muted-foreground">{t.profile?.email || t.user_id.slice(0, 8)}</p>
+                        </div>
                       </TableCell>
                       <TableCell className="font-medium">{fmt(t.amount)}</TableCell>
                       <TableCell>{statusBadge(t.status)}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {t.description || "—"}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground font-mono max-w-[150px] truncate">
-                        {t.stripe_payment_intent_id || "—"}
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {t.stripe_payment_intent_id || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {t.paystub_id ? t.paystub_id.slice(0, 8) + "…" : "—"}
+                        </span>
                       </TableCell>
                     </TableRow>
                   ))}
                   {transactions.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         No transactions yet
                       </TableCell>
                     </TableRow>
