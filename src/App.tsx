@@ -20,6 +20,7 @@ import Blog from "./pages/Blog";
 import Disclaimer from "./pages/Disclaimer";
 import NotFound from "./pages/NotFound";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import SetPassword from "./pages/SetPassword";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,8 @@ const App = () => (
             <Route path="/blog" element={<Blog />} />
             <Route path="/disclaimer" element={<Disclaimer />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/reset-password" element={<SetPassword />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

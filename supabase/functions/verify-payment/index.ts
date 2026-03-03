@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
             type: "magiclink",
             email: sessionEmail,
             options: {
-              redirectTo: `${origin}/dashboard`,
+              redirectTo: `${origin}/set-password`,
             },
           });
         }
