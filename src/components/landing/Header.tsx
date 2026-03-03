@@ -1,10 +1,18 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Shield, FileText } from "lucide-react";
+import { Menu, X, Shield, FileText, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   const navLinks = [
     { name: "Features", href: "#features" },
@@ -46,9 +54,21 @@ const Header = () => {
               <Shield className="w-4 h-4" />
               <span>SSL Secured</span>
             </div>
-            <Link to="/login">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
+            {user ? (
+              <>
+                <Link to="/dashboard">
+                  <Button variant="ghost">Dashboard</Button>
+                </Link>
+                <Button variant="ghost" onClick={handleSignOut} className="gap-2">
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Link to="/login">
+                <Button variant="ghost">Sign In</Button>
+              </Link>
+            )}
             <Link to="/create">
               <Button className="bg-gradient-primary hover:opacity-90 transition-opacity">
                 Create Paystub
@@ -85,11 +105,21 @@ const Header = () => {
                 </a>
               ))}
               <div className="flex flex-col gap-3 pt-4 border-t border-border">
-                <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="outline" className="w-full">
-                    Sign In
-                  </Button>
-                </Link>
+                {user ? (
+                  <>
+                    <Link to="/dashboard" onClick={() => setIsMenuOpen(false)}>
+                      <Button variant="outline" className="w-full">Dashboard</Button>
+                    </Link>
+                    <Button variant="outline" className="w-full gap-2" onClick={() => { handleSignOut(); setIsMenuOpen(false); }}>
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </Button>
+                  </>
+                ) : (
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)}>
+                    <Button variant="outline" className="w-full">Sign In</Button>
+                  </Link>
+                )}
                 <Link to="/create" onClick={() => setIsMenuOpen(false)}>
                   <Button className="w-full bg-gradient-primary hover:opacity-90 transition-opacity">
                     Create Paystub
