@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, Download, Home, FileText, Loader2, AlertTriangle, Image, FileSpreadsheet } from "lucide-react";
+import { CheckCircle, Download, Home, FileText, Loader2, AlertTriangle, Image, FileSpreadsheet, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { loadPaystubFromDb } from "@/lib/paystub-db";
@@ -18,43 +18,53 @@ const PaymentSuccess = () => {
   const [status, setStatus] = useState<"loading" | "verified" | "failed">("loading");
   const [paystubId, setPaystubId] = useState<string | null>(paystubIdParam);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [isGuestPurchase, setIsGuestPurchase] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<{
     amount_total: number | null;
     currency: string | null;
   } | null>(null);
 
   useEffect(() => {
-    if (!sessionId || !user) {
-      setStatus(sessionId ? "loading" : "failed");
+    if (!sessionId) {
+      setStatus("failed");
       return;
     }
 
-    const verify = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("verify-payment", {
-          body: { session_id: sessionId },
-        });
+    // Allow a brief delay for auth to settle, then verify
+    const timer = setTimeout(() => verify(), 1500);
+    return () => clearTimeout(timer);
+  }, [sessionId]);
 
-        if (error) throw error;
+  const verify = async () => {
+    if (!sessionId) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("verify-payment", {
+        body: { session_id: sessionId },
+      });
 
-        if (data?.verified) {
-          setStatus("verified");
-          setPaymentInfo({ amount_total: data.amount_total, currency: data.currency });
-          if (data.paystub_id) setPaystubId(data.paystub_id);
-        } else {
-          setStatus("failed");
-        }
-      } catch {
+      if (error) throw error;
+
+      if (data?.verified) {
+        setStatus("verified");
+        setPaymentInfo({ amount_total: data.amount_total, currency: data.currency });
+        if (data.paystub_id) setPaystubId(data.paystub_id);
+        setIsGuestPurchase(!user);
+      } else {
         setStatus("failed");
       }
-    };
-
-    verify();
-  }, [sessionId, user]);
+    } catch {
+      setStatus("failed");
+    }
+  };
 
   const handleDownload = async (format: "pdf" | "png" | "xlsx") => {
     if (!paystubId) {
-      toast({ title: "No paystub found", description: "Please download from your dashboard.", variant: "destructive" });
+      toast({ title: "No paystub found", description: "Please check your email for access.", variant: "destructive" });
+      return;
+    }
+
+    if (!user) {
+      toast({ title: "Login Required", description: "Please check your email for a login link to download your paystub.", variant: "destructive" });
       return;
     }
 
@@ -111,7 +121,7 @@ const PaymentSuccess = () => {
       }
     } catch (err) {
       console.error("Download error:", err);
-      toast({ title: "Download Failed", description: "Please try downloading from your dashboard.", variant: "destructive" });
+      toast({ title: "Download Failed", description: "Please try again from your dashboard.", variant: "destructive" });
     } finally {
       setIsDownloading(null);
     }
@@ -168,12 +178,32 @@ const PaymentSuccess = () => {
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Payment Successful!</h1>
           <p className="text-muted-foreground">
-            Your payment of {formattedAmount} has been confirmed. Download your paystub below.
+            Your payment of {formattedAmount} has been confirmed.
           </p>
         </div>
 
-        {/* Download Buttons */}
-        {paystubId && (
+        {/* Guest purchase notice */}
+        {isGuestPurchase && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                  <Mail className="w-5 h-5 text-primary" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-foreground">Check Your Email</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    We've created an account for you and sent a login link to your email. 
+                    Use it to access your dashboard and download your paystub anytime.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Download Buttons - only for logged-in users */}
+        {paystubId && user && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {([
               { format: "pdf" as const, label: "PDF", icon: FileText, color: "destructive" },
@@ -207,12 +237,21 @@ const PaymentSuccess = () => {
         )}
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-          <Button asChild variant="outline" size="lg" className="gap-2">
-            <Link to="/dashboard">
-              <Home className="w-4 h-4" />
-              Go to Dashboard
-            </Link>
-          </Button>
+          {user ? (
+            <Button asChild variant="outline" size="lg" className="gap-2">
+              <Link to="/dashboard">
+                <Home className="w-4 h-4" />
+                Go to Dashboard
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild variant="outline" size="lg" className="gap-2">
+              <Link to="/login">
+                <Home className="w-4 h-4" />
+                Log In to Dashboard
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="ghost" size="lg" className="gap-2">
             <Link to="/create">
               <FileText className="w-4 h-4" />
@@ -222,9 +261,15 @@ const PaymentSuccess = () => {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Your paystub is also available in your{" "}
-          <Link to="/dashboard" className="text-primary underline">dashboard</Link>.
-          If you have any issues, please{" "}
+          {user ? (
+            <>
+              Your paystub is also available in your{" "}
+              <Link to="/dashboard" className="text-primary underline">dashboard</Link>.
+            </>
+          ) : (
+            <>Check your email for a login link to access your paystub.</>
+          )}
+          {" "}If you have any issues, please{" "}
           <Link to="/contact" className="text-primary underline">contact support</Link>.
         </p>
       </div>
