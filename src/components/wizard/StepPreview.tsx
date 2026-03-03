@@ -83,7 +83,14 @@ const StepPreview = ({ data, onEditStep }: StepPreviewProps) => {
       )}
 
       {/* Paystub Preview Card */}
-      <Card className="border-2 border-border shadow-elegant overflow-hidden">
+      <Card className="border-2 border-border shadow-elegant overflow-hidden relative">
+        {/* Watermark Overlay */}
+        <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center overflow-hidden">
+          <div className="-rotate-45 select-none flex flex-col items-center gap-2">
+            <span className="text-7xl md:text-8xl font-black tracking-widest text-muted-foreground/15">SAMPLE</span>
+            <span className="text-xl md:text-2xl font-bold tracking-wider text-muted-foreground/15">FOR PREVIEW ONLY</span>
+          </div>
+        </div>
         {/* Header */}
         <CardHeader className="bg-primary text-primary-foreground p-6">
           <div className="flex justify-between items-start">
