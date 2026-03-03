@@ -1,31 +1,64 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Mail, Loader2 } from "lucide-react";
+import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Loader2 } from "lucide-react";
 import { PaystubData } from "@/types/paystub";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useSearchParams } from "react-router-dom";
 
 interface StepDownloadProps {
   data: PaystubData;
 }
 
 const StepDownload = ({ data }: StepDownloadProps) => {
-  const [email, setEmail] = useState("");
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [isPaying, setIsPaying] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
 
+  // Check if returning from successful payment
+  useEffect(() => {
+    if (searchParams.get("payment") === "success") {
+      setIsPaid(true);
+    }
+  }, [searchParams]);
+
   const handlePayAndDownload = async () => {
-    if (!email) return;
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in or create an account to purchase a paystub.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsPaying(true);
-    // TODO: Integrate Stripe payment + auto-create account
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsPaying(false);
-    setIsPaid(true);
+    try {
+      const { data: funcData, error } = await supabase.functions.invoke("create-payment", {
+        body: {},
+      });
+
+      if (error) throw error;
+      if (funcData?.url) {
+        window.location.href = funcData.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (err) {
+      console.error("Payment error:", err);
+      toast({
+        title: "Payment Failed",
+        description: "There was an error starting the payment process. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   const handleDownload = async (format: "pdf" | "png" | "xlsx") => {
@@ -95,9 +128,8 @@ const StepDownload = ({ data }: StepDownloadProps) => {
 
       {!isPaid ? (
         <PaymentSection
-          email={email}
-          setEmail={setEmail}
           isPaying={isPaying}
+          isAuthenticated={!!user}
           onPay={handlePayAndDownload}
         />
       ) : (
@@ -139,13 +171,12 @@ const StepDownload = ({ data }: StepDownloadProps) => {
 
 /* ---------- Payment Section ---------- */
 interface PaymentSectionProps {
-  email: string;
-  setEmail: (email: string) => void;
   isPaying: boolean;
+  isAuthenticated: boolean;
   onPay: () => void;
 }
 
-const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProps) => (
+const PaymentSection = ({ isPaying, isAuthenticated, onPay }: PaymentSectionProps) => (
   <div className="space-y-6">
     <Card className="border-primary/50 shadow-elegant">
       <CardHeader className="text-center pb-4">
@@ -183,32 +214,22 @@ const PaymentSection = ({ email, setEmail, isPaying, onPay }: PaymentSectionProp
         </div>
 
         <div className="space-y-4 pt-2">
-          <div className="space-y-2">
-            <Label htmlFor="email" className="flex items-center gap-1.5">
-              <Mail className="w-4 h-4" />
-              Email Address
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="your@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              We'll send a copy of your paystub and create your free account
+          {!isAuthenticated && (
+            <p className="text-sm text-muted-foreground text-center">
+              Please <a href="/login" className="text-primary underline">log in</a> or{" "}
+              <a href="/signup" className="text-primary underline">create an account</a> to purchase.
             </p>
-          </div>
+          )}
 
           <Button
             className="w-full bg-gradient-primary hover:opacity-90 text-lg h-12"
             onClick={onPay}
-            disabled={isPaying || !email}
+            disabled={isPaying || !isAuthenticated}
           >
             {isPaying ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Processing Payment...
+                Redirecting to checkout...
               </span>
             ) : (
               <>
