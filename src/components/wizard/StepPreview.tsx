@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Edit, Eye } from "lucide-react";
+import { Edit, Eye, Stamp, Download } from "lucide-react";
 import { PaystubData } from "@/types/paystub";
 
 interface StepPreviewProps {
@@ -282,8 +282,23 @@ const StepPreview = ({ data, onEditStep }: StepPreviewProps) => {
           </div>
 
           {/* Watermark Notice */}
-          <div className="text-center text-sm text-muted-foreground pt-4">
-            <p>This is a preview. The final document will be watermark-free after payment.</p>
+          <div className="bg-muted/50 border border-border rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                <Stamp className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">Free Sample Available</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  On the next step, you can download a <strong>free watermarked PDF</strong> to preview your paystub before purchasing.
+                  The paid version is watermark-free.
+                </p>
+              </div>
+              <Badge variant="outline" className="shrink-0 mt-0.5 text-xs">
+                <Download className="w-3 h-3 mr-1" />
+                Free
+              </Badge>
+            </div>
           </div>
         </CardContent>
       </Card>
