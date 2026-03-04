@@ -50,6 +50,8 @@ export interface PayPeriodInfo {
   periodStart: string;
   periodEnd: string;
   payDate: string;
+  numberOfStubs: number;
+  payDates: string[];
 }
 
 export interface YTDInfo {
@@ -123,6 +125,8 @@ export const defaultPaystubData: PaystubData = {
     periodStart: new Date().toISOString().split("T")[0],
     periodEnd: new Date().toISOString().split("T")[0],
     payDate: new Date().toISOString().split("T")[0],
+    numberOfStubs: 1,
+    payDates: [new Date().toISOString().split("T")[0]],
   },
   ytd: {
     grossPay: 0,

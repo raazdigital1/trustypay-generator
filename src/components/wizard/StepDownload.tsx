@@ -55,11 +55,13 @@ const StepDownload = ({ data }: StepDownloadProps) => {
     try {
       // For guests, send paystub data to be saved server-side
       // For authenticated users, also send data server-side to avoid client-side DB save issues
+      const quantity = data.payPeriod.numberOfStubs || 1;
       const { data: funcData, error } = await supabase.functions.invoke("create-payment", {
         body: {
           email: user ? undefined : email,
           paystub_data: data,
           coupon_code: appliedCoupon || undefined,
+          quantity,
         },
       });
 
@@ -181,6 +183,7 @@ const StepDownload = ({ data }: StepDownloadProps) => {
           setCouponError={setCouponError}
           isFreeDownloading={isFreeDownloading}
           onFreeDownload={() => handleDownload("pdf", true)}
+          quantity={data.payPeriod.numberOfStubs || 1}
         />
       ) : (
         <DownloadSection
@@ -236,14 +239,16 @@ interface PaymentSectionProps {
   setCouponError: (v: string | null) => void;
   isFreeDownloading: boolean;
   onFreeDownload: () => void;
+  quantity: number;
 }
 
 const PaymentSection = ({
   isPaying, isAuthenticated, userEmail, guestEmail, setGuestEmail, emailError, setEmailError,
   onPay,
   couponCode, setCouponCode, appliedCoupon, setAppliedCoupon, couponError, setCouponError,
-  isFreeDownloading, onFreeDownload,
+  isFreeDownloading, onFreeDownload, quantity,
 }: PaymentSectionProps) => {
+  const totalPrice = 4.99 * quantity;
   const handleApplyCoupon = () => {
     const code = couponCode.trim().toUpperCase();
     if (!code) return;
@@ -265,12 +270,16 @@ const PaymentSection = ({
           <CreditCard className="w-7 h-7 text-primary" />
         </div>
         <CardTitle className="text-2xl">One-Time Payment</CardTitle>
-        <CardDescription>Pay once and download your paystub instantly</CardDescription>
+        <CardDescription>Pay once and download your paystub{quantity > 1 ? "s" : ""} instantly</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="text-center bg-muted/50 rounded-lg p-6">
-          <div className="text-4xl font-bold text-foreground mb-1">$4.99</div>
-          <p className="text-sm text-muted-foreground">per paystub</p>
+          <div className="text-4xl font-bold text-foreground mb-1">${totalPrice.toFixed(2)}</div>
+          {quantity > 1 ? (
+            <p className="text-sm text-muted-foreground">{quantity} paystubs × $4.99 each</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">per paystub</p>
+          )}
         </div>
 
         <div className="space-y-3">
@@ -354,7 +363,7 @@ const PaymentSection = ({
             ) : (
               <>
                 <CreditCard className="w-5 h-5 mr-2" />
-                Pay $4.99 & Download
+                Pay ${totalPrice.toFixed(2)} & Download
               </>
             )}
           </Button>
