@@ -134,6 +134,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const couponCode = typeof body.coupon_code === "string" ? body.coupon_code.trim().toUpperCase() : null;
     const paystubData = body.paystub_data || null;
+    const quantity = Math.min(Math.max(parseInt(body.quantity) || 1, 1), 10);
+    const guestEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : null;
     const guestEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : null;
 
     let userEmail: string;
@@ -271,7 +273,7 @@ Deno.serve(async (req) => {
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       customer_email: customerId ? undefined : userEmail,
-      line_items: [{ price: PAYSTUB_PRICE_ID, quantity: 1 }],
+      line_items: [{ price: PAYSTUB_PRICE_ID, quantity }],
       mode: "payment",
       success_url: successUrl,
       cancel_url: `${origin}/create?payment=canceled`,

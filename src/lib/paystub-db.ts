@@ -176,6 +176,8 @@ export async function loadPaystubFromDb(paystubId: string): Promise<PaystubData 
       periodStart: ps.pay_period_start,
       periodEnd: ps.pay_period_end,
       payDate: ps.pay_date,
+      numberOfStubs: 1,
+      payDates: [ps.pay_date],
     },
     ytd: {
       grossPay: Number(ps.ytd_gross) || 0,
