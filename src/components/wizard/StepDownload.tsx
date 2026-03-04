@@ -26,6 +26,7 @@ const StepDownload = ({ data }: StepDownloadProps) => {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [guestEmail, setGuestEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number } | null>(null);
 
   useEffect(() => {
     if (searchParams.get("payment") === "success") {
@@ -92,6 +93,36 @@ const StepDownload = ({ data }: StepDownloadProps) => {
     }
   };
 
+  const generateSingleStub = async (
+    stubData: typeof data,
+    format: "pdf" | "png",
+    watermark: boolean,
+    stubIndex?: number
+  ): Promise<void> => {
+    const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
+      body: { ...stubData, format, watermark },
+      headers: { "Content-Type": "application/json" },
+    });
+    if (error) throw error;
+
+    let blob: Blob;
+    const mimeType = format === "pdf" ? "application/pdf" : "image/png";
+    if (funcData instanceof Blob) blob = funcData;
+    else if (funcData instanceof ArrayBuffer) blob = new Blob([funcData], { type: mimeType });
+    else throw new Error("Unexpected response format");
+
+    const suffix = watermark ? "_sample" : "";
+    const indexSuffix = stubIndex !== undefined ? `_${stubIndex + 1}` : "";
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `paystub_${stubData.employee.firstName}_${stubData.employee.lastName}${indexSuffix}${suffix}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleDownload = async (format: "pdf" | "png" | "xlsx", watermark: boolean = false) => {
     if (watermark) {
       setIsFreeDownloading(true);
@@ -100,39 +131,38 @@ const StepDownload = ({ data }: StepDownloadProps) => {
     }
     try {
       if (format === "pdf" || format === "png") {
-        const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
-          body: { ...data, format, watermark },
-          headers: { "Content-Type": "application/json" },
-        });
+        const payDates = data.payPeriod.payDates || [data.payPeriod.payDate];
+        const numberOfStubs = data.payPeriod.numberOfStubs || 1;
+        const datesToProcess = payDates.slice(0, numberOfStubs);
 
-        if (error) throw error;
-
-        let blob: Blob;
-        const mimeType = format === "pdf" ? "application/pdf" : "image/png";
-        if (funcData instanceof Blob) {
-          blob = funcData;
-        } else if (funcData instanceof ArrayBuffer) {
-          blob = new Blob([funcData], { type: mimeType });
+        if (datesToProcess.length > 1 && !watermark) {
+          setDownloadProgress({ current: 0, total: datesToProcess.length });
+          for (let i = 0; i < datesToProcess.length; i++) {
+            setDownloadProgress({ current: i + 1, total: datesToProcess.length });
+            const stubData = {
+              ...data,
+              payPeriod: { ...data.payPeriod, payDate: datesToProcess[i] },
+            };
+            await generateSingleStub(stubData, format, false, i);
+            // Small delay between downloads so browser handles them
+            if (i < datesToProcess.length - 1) {
+              await new Promise((r) => setTimeout(r, 800));
+            }
+          }
+          setDownloadProgress(null);
+          toast({
+            title: `${datesToProcess.length} Paystubs Downloaded!`,
+            description: `All ${datesToProcess.length} paystubs have been downloaded successfully.`,
+          });
         } else {
-          throw new Error("Unexpected response format");
+          await generateSingleStub(data, format, watermark);
+          toast({
+            title: watermark ? "Sample Downloaded!" : `${format.toUpperCase()} Downloaded!`,
+            description: watermark
+              ? "Your watermarked sample paystub has been downloaded."
+              : "Your paystub has been downloaded successfully.",
+          });
         }
-
-        const suffix = watermark ? "_sample" : "";
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `paystub_${data.employee.firstName}_${data.employee.lastName}${suffix}.${format}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        toast({
-          title: watermark ? "Sample Downloaded!" : `${format.toUpperCase()} Downloaded!`,
-          description: watermark
-            ? "Your watermarked sample paystub has been downloaded."
-            : "Your paystub has been downloaded successfully.",
-        });
       } else {
         toast({
           title: `${format.toUpperCase()} format`,
@@ -141,6 +171,7 @@ const StepDownload = ({ data }: StepDownloadProps) => {
       }
     } catch (err) {
       console.error("Download error:", err);
+      setDownloadProgress(null);
       toast({
         title: "Download Failed",
         description: "There was an error generating your paystub. Please try again.",
@@ -152,16 +183,18 @@ const StepDownload = ({ data }: StepDownloadProps) => {
     }
   };
 
+  const stubCount = data.payPeriod.numberOfStubs || 1;
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-foreground mb-2">
-          Download Your Paystub
+          Download Your Paystub{stubCount > 1 ? "s" : ""}
         </h2>
         <p className="text-muted-foreground">
           {isPaid
-            ? "Your payment is confirmed — download your paystub below"
-            : "Complete payment to download your professional paystub"}
+            ? `Your payment is confirmed — download your ${stubCount > 1 ? `${stubCount} paystubs` : "paystub"} below`
+            : `Complete payment to download your professional paystub${stubCount > 1 ? "s" : ""}`}
         </p>
       </div>
 
@@ -189,6 +222,8 @@ const StepDownload = ({ data }: StepDownloadProps) => {
         <DownloadSection
           isDownloading={isDownloading}
           onDownload={(format) => handleDownload(format)}
+          downloadProgress={downloadProgress}
+          stubCount={stubCount}
         />
       )}
 
@@ -434,9 +469,11 @@ const PaymentSection = ({
 interface DownloadSectionProps {
   isDownloading: string | null;
   onDownload: (format: "pdf" | "png" | "xlsx") => void;
+  downloadProgress: { current: number; total: number } | null;
+  stubCount: number;
 }
 
-const DownloadSection = ({ isDownloading, onDownload }: DownloadSectionProps) => (
+const DownloadSection = ({ isDownloading, onDownload, downloadProgress, stubCount }: DownloadSectionProps) => (
   <div className="space-y-6">
     <Card className="border-accent bg-accent/5">
       <CardContent className="p-6">
@@ -446,16 +483,41 @@ const DownloadSection = ({ isDownloading, onDownload }: DownloadSectionProps) =>
           </div>
           <div>
             <p className="font-semibold text-foreground">Payment Successful!</p>
-            <p className="text-sm text-muted-foreground">Choose your download format below.</p>
+            <p className="text-sm text-muted-foreground">
+              {stubCount > 1
+                ? `Download your ${stubCount} paystubs in your preferred format below.`
+                : "Choose your download format below."}
+            </p>
           </div>
         </div>
       </CardContent>
     </Card>
 
+    {downloadProgress && (
+      <Card className="border-primary/30">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-primary animate-spin" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">
+                Generating paystub {downloadProgress.current} of {downloadProgress.total}...
+              </p>
+              <div className="w-full bg-muted rounded-full h-2 mt-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${(downloadProgress.current / downloadProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )}
+
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {([
-        { format: "pdf" as const, label: "PDF Document", desc: "Professional format for printing", icon: FileText, color: "destructive" },
-        { format: "png" as const, label: "PNG Image", desc: "High-quality image format", icon: Image, color: "accent" },
+        { format: "pdf" as const, label: "PDF Document", desc: stubCount > 1 ? `${stubCount} individual PDF files` : "Professional format for printing", icon: FileText, color: "destructive" },
+        { format: "png" as const, label: "PNG Image", desc: stubCount > 1 ? `${stubCount} individual PNG files` : "High-quality image format", icon: Image, color: "accent" },
         { format: "xlsx" as const, label: "Excel File", desc: "Spreadsheet for records", icon: FileSpreadsheet, color: "primary" },
       ]).map(({ format, label, desc, icon: Icon, color }) => (
         <Card key={format} className="border-2 hover:border-primary/50 transition-colors">
@@ -471,7 +533,7 @@ const DownloadSection = ({ isDownloading, onDownload }: DownloadSectionProps) =>
               {isDownloading === format ? (
                 <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Generating...</span>
               ) : (
-                <><Download className="w-4 h-4 mr-2" />Download {format.toUpperCase()}</>
+                <><Download className="w-4 h-4 mr-2" />Download {format.toUpperCase()}{stubCount > 1 ? ` (${stubCount})` : ""}</>
               )}
             </Button>
           </CardContent>
