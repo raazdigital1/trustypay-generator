@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Edit, Eye, Stamp, Download } from "lucide-react";
+import { Edit, Eye, Stamp, Download, CalendarDays } from "lucide-react";
 import { PaystubData } from "@/types/paystub";
 
 interface StepPreviewProps {
@@ -113,6 +113,11 @@ const StepPreview = ({ data, onEditStep }: StepPreviewProps) => {
               <p className="text-sm opacity-90">
                 Pay Date: {formatDate(data.payPeriod.payDate)}
               </p>
+              {data.payPeriod.numberOfStubs > 1 && (
+                <Badge variant="outline" className="mt-1 bg-primary-foreground/10 text-primary-foreground border-primary-foreground/30">
+                  {data.payPeriod.numberOfStubs} Paystubs
+                </Badge>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -287,6 +292,29 @@ const StepPreview = ({ data, onEditStep }: StepPreviewProps) => {
               </span>
             </div>
           </div>
+
+          {/* Multiple Pay Dates */}
+          {data.payPeriod.numberOfStubs > 1 && data.payPeriod.payDates.length > 0 && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <CalendarDays className="w-4 h-4 text-primary" />
+                <h4 className="text-sm font-semibold text-foreground">
+                  {data.payPeriod.numberOfStubs} Paystubs — Pay Dates
+                </h4>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {data.payPeriod.payDates.map((date, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-sm bg-background rounded-md px-3 py-1.5 border border-border">
+                    <span className="text-xs font-medium text-muted-foreground">#{idx + 1}</span>
+                    <span className="text-foreground">{formatDate(date)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Total: {data.payPeriod.numberOfStubs} × ${(4.99).toFixed(2)} = ${(data.payPeriod.numberOfStubs * 4.99).toFixed(2)}
+              </p>
+            </div>
+          )}
 
           {/* Watermark Notice */}
           <div className="bg-muted/50 border border-border rounded-lg p-4">
