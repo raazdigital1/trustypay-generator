@@ -28,22 +28,21 @@ function generatePayDates(
   const dates: string[] = [];
   const base = new Date(startDate + "T12:00:00"); // noon to avoid DST issues
 
-  for (let i = 0; i < count; i++) {
+  for (let i = count - 1; i >= 0; i--) {
     const d = new Date(base);
     switch (frequency) {
       case "weekly":
-        d.setDate(d.getDate() + i * 7);
+        d.setDate(d.getDate() - i * 7);
         break;
       case "bi_weekly":
-        d.setDate(d.getDate() + i * 14);
+        d.setDate(d.getDate() - i * 14);
         break;
       case "semi_monthly":
-        // Advance by half-months: 1st and 15th pattern
-        d.setMonth(d.getMonth() + Math.floor(i / 2));
-        if (i % 2 === 1) d.setDate(d.getDate() + 15);
+        d.setMonth(d.getMonth() - Math.floor(i / 2));
+        if (i % 2 === 1) d.setDate(d.getDate() - 15);
         break;
       case "monthly":
-        d.setMonth(d.getMonth() + i);
+        d.setMonth(d.getMonth() - i);
         break;
     }
     dates.push(d.toISOString().split("T")[0]);
@@ -172,7 +171,7 @@ const StepPayPeriod = ({ data, onUpdateData, errors = {} }: StepPayPeriodProps) 
               <FieldError message={errors.periodEnd} />
             </div>
             <div className="space-y-2">
-              <Label>First Pay Date *</Label>
+              <Label>Pay Date *</Label>
               <Input
                 type="date"
                 value={data.payPeriod.payDate}
