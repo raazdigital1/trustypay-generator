@@ -167,4 +167,5 @@ export const defaultPaystubData: PaystubData = {
   },
   stateCode: "CA",
   includeYTD: true,
+  stubs: [],
 };
