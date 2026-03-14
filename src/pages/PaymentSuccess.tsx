@@ -13,11 +13,14 @@ const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const sessionId = searchParams.get("session_id");
-  const paystubIdParam = searchParams.get("paystub_id");
+  const paystubIdsParam = searchParams.get("paystub_ids");
 
   const [status, setStatus] = useState<"loading" | "verified" | "failed">("loading");
-  const [paystubId, setPaystubId] = useState<string | null>(paystubIdParam);
+  const [paystubIds, setPaystubIds] = useState<string[]>(
+    paystubIdsParam ? paystubIdsParam.split(",").filter(Boolean) : []
+  );
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number } | null>(null);
   const [isGuestPurchase, setIsGuestPurchase] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<{
     amount_total: number | null;
@@ -29,8 +32,6 @@ const PaymentSuccess = () => {
       setStatus("failed");
       return;
     }
-
-    // Allow a brief delay for auth to settle, then verify
     const timer = setTimeout(() => verify(), 1500);
     return () => clearTimeout(timer);
   }, [sessionId]);
@@ -41,13 +42,14 @@ const PaymentSuccess = () => {
       const { data, error } = await supabase.functions.invoke("verify-payment", {
         body: { session_id: sessionId },
       });
-
       if (error) throw error;
 
       if (data?.verified) {
         setStatus("verified");
         setPaymentInfo({ amount_total: data.amount_total, currency: data.currency });
-        if (data.paystub_id) setPaystubId(data.paystub_id);
+        if (data.paystub_ids && data.paystub_ids.length > 0) {
+          setPaystubIds(data.paystub_ids);
+        }
         setIsGuestPurchase(!user);
       } else {
         setStatus("failed");
@@ -58,69 +60,95 @@ const PaymentSuccess = () => {
   };
 
   const handleDownload = async (format: "pdf" | "png" | "xlsx") => {
-    if (!paystubId) {
+    if (paystubIds.length === 0) {
       toast({ title: "No paystub found", description: "Please check your email for access.", variant: "destructive" });
       return;
     }
-
     if (!user) {
       toast({ title: "Login Required", description: "Please check your email for a login link to download your paystub.", variant: "destructive" });
+      return;
+    }
+    if (format === "xlsx") {
+      toast({ title: "Coming soon", description: "Excel format will be available soon!" });
       return;
     }
 
     setIsDownloading(format);
     try {
-      const paystubData = await loadPaystubFromDb(paystubId);
-      if (!paystubData) throw new Error("Could not load paystub data");
+      setDownloadProgress({ current: 0, total: paystubIds.length });
 
-      if (format === "pdf") {
-        const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
-          body: { ...paystubData, format: "pdf", watermark: false },
-          headers: { "Content-Type": "application/json" },
-        });
-        if (error) throw error;
+      for (let i = 0; i < paystubIds.length; i++) {
+        setDownloadProgress({ current: i + 1, total: paystubIds.length });
+        const paystubData = await loadPaystubFromDb(paystubIds[i]);
+        if (!paystubData) {
+          console.error(`Could not load paystub ${paystubIds[i]}`);
+          continue;
+        }
 
-        let blob: Blob;
-        if (funcData instanceof Blob) blob = funcData;
-        else if (funcData instanceof ArrayBuffer) blob = new Blob([funcData], { type: "application/pdf" });
-        else throw new Error("Unexpected response format");
+        // Ensure includeYTD is true so YTD section renders in PDF
+        const payload = { ...paystubData, includeYTD: true, format, watermark: false };
 
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        toast({ title: "PDF Downloaded!" });
-      } else if (format === "png") {
-        const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
-          body: { ...paystubData, format: "png", watermark: false },
-          headers: { "Content-Type": "application/json" },
-        });
-        if (error) throw error;
+        if (format === "pdf") {
+          const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
+            body: payload,
+            headers: { "Content-Type": "application/json" },
+          });
+          if (error) throw error;
 
-        let svgText: string;
-        if (funcData instanceof Blob) svgText = await funcData.text();
-        else if (typeof funcData === "string") svgText = funcData;
-        else throw new Error("Unexpected SVG response");
+          let blob: Blob;
+          if (funcData instanceof Blob) blob = funcData;
+          else if (funcData instanceof ArrayBuffer) blob = new Blob([funcData], { type: "application/pdf" });
+          else throw new Error("Unexpected response format");
 
-        const pngBlob = await svgToPng(svgText);
-        const url = URL.createObjectURL(pngBlob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        toast({ title: "PNG Downloaded!" });
-      } else {
-        toast({ title: "Coming soon", description: "Excel format will be available soon!" });
+          const indexSuffix = paystubIds.length > 1 ? `_${i + 1}` : "";
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}${indexSuffix}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } else if (format === "png") {
+          const { data: funcData, error } = await supabase.functions.invoke("generate-paystub", {
+            body: payload,
+            headers: { "Content-Type": "application/json" },
+          });
+          if (error) throw error;
+
+          let svgText: string;
+          if (funcData instanceof Blob) svgText = await funcData.text();
+          else if (typeof funcData === "string") svgText = funcData;
+          else throw new Error("Unexpected SVG response");
+
+          const pngBlob = await svgToPng(svgText);
+          const indexSuffix = paystubIds.length > 1 ? `_${i + 1}` : "";
+          const url = URL.createObjectURL(pngBlob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `paystub_${paystubData.employee.firstName}_${paystubData.employee.lastName}${indexSuffix}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+
+        // Small delay between downloads
+        if (i < paystubIds.length - 1) {
+          await new Promise((r) => setTimeout(r, 800));
+        }
       }
+
+      setDownloadProgress(null);
+      toast({
+        title: `${paystubIds.length > 1 ? `${paystubIds.length} Paystubs` : "Paystub"} Downloaded!`,
+        description: paystubIds.length > 1
+          ? `All ${paystubIds.length} paystubs have been downloaded.`
+          : "Your paystub has been downloaded successfully.",
+      });
     } catch (err) {
       console.error("Download error:", err);
+      setDownloadProgress(null);
       toast({ title: "Download Failed", description: "Please try again from your dashboard.", variant: "destructive" });
     } finally {
       setIsDownloading(null);
@@ -167,6 +195,7 @@ const PaymentSuccess = () => {
   const formattedAmount = paymentInfo?.amount_total
     ? `$${(paymentInfo.amount_total / 100).toFixed(2)}`
     : "$4.99";
+  const stubCount = paystubIds.length || 1;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -179,10 +208,10 @@ const PaymentSuccess = () => {
           <h1 className="text-3xl font-bold text-foreground mb-2">Payment Successful!</h1>
           <p className="text-muted-foreground">
             Your payment of {formattedAmount} has been confirmed.
+            {stubCount > 1 && ` ${stubCount} paystubs are ready for download.`}
           </p>
         </div>
 
-        {/* Guest purchase notice */}
         {isGuestPurchase && (
           <Card className="border-primary/30 bg-primary/5">
             <CardContent className="p-6">
@@ -193,7 +222,7 @@ const PaymentSuccess = () => {
                 <div className="text-left">
                   <p className="font-semibold text-foreground">Check Your Email</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    We've sent a link to your email. Click it to set your password and access your dashboard, where you can download your paystub anytime.
+                    We've sent a link to your email. Click it to set your password and access your dashboard, where you can download your paystub{stubCount > 1 ? "s" : ""} anytime.
                   </p>
                 </div>
               </div>
@@ -201,8 +230,7 @@ const PaymentSuccess = () => {
           </Card>
         )}
 
-        {/* Download Buttons - only for logged-in users */}
-        {paystubId && user && (
+        {paystubIds.length > 0 && user && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {([
               { format: "pdf" as const, label: "PDF", icon: FileText, color: "destructive" },
@@ -215,6 +243,9 @@ const PaymentSuccess = () => {
                     <Icon className={`w-5 h-5 text-${color}`} />
                   </div>
                   <CardTitle className="text-base">{label}</CardTitle>
+                  {stubCount > 1 && (
+                    <p className="text-xs text-muted-foreground">{stubCount} files</p>
+                  )}
                 </CardHeader>
                 <CardContent className="pb-4">
                   <Button
@@ -224,7 +255,14 @@ const PaymentSuccess = () => {
                     disabled={isDownloading !== null}
                   >
                     {isDownloading === format ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      downloadProgress ? (
+                        <span className="flex items-center gap-1">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {downloadProgress.current}/{downloadProgress.total}
+                        </span>
+                      ) : (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      )
                     ) : (
                       <><Download className="w-4 h-4 mr-1" />{label}</>
                     )}
@@ -262,11 +300,11 @@ const PaymentSuccess = () => {
         <p className="text-xs text-muted-foreground">
           {user ? (
             <>
-              Your paystub is also available in your{" "}
+              Your paystub{stubCount > 1 ? "s are" : " is"} also available in your{" "}
               <Link to="/dashboard" className="text-primary underline">dashboard</Link>.
             </>
           ) : (
-            <>Check your email for a login link to access your paystub.</>
+            <>Check your email for a login link to access your paystub{stubCount > 1 ? "s" : ""}.</>
           )}
           {" "}If you have any issues, please{" "}
           <Link to="/contact" className="text-primary underline">contact support</Link>.
