@@ -10,11 +10,12 @@ import StepEarnings from "@/components/wizard/StepEarnings";
 import StepPayPeriod from "@/components/wizard/StepPayPeriod";
 import StepPreview from "@/components/wizard/StepPreview";
 import StepDownload from "@/components/wizard/StepDownload";
-import { PaystubData, defaultPaystubData } from "@/types/paystub";
+import { PaystubData, IndividualStubData, defaultPaystubData } from "@/types/paystub";
 import { useTaxRates } from "@/hooks/useTaxRates";
 import { validateStep, StepErrors } from "@/hooks/useWizardValidation";
 import { toast } from "@/hooks/use-toast";
 import { loadPaystubFromDb, updatePaystubInDb } from "@/lib/paystub-db";
+import { initializeStubs } from "@/lib/stub-calculations";
 import { supabase } from "@/integrations/supabase/client";
 
 const steps = [
@@ -37,6 +38,9 @@ const Create = () => {
   const [isLoadingEdit, setIsLoadingEdit] = useState(!!editId);
   const [editingPaystubId, setEditingPaystubId] = useState<string | null>(editId);
   const { taxRates, loadError } = useTaxRates();
+
+  // Get current tax rate for calculations
+  const currentTaxRate = taxRates.find((r) => r.state_code === paystubData.stateCode) || null;
 
   // Load paystub data when editing
   useEffect(() => {
@@ -74,6 +78,13 @@ const Create = () => {
       return;
     }
     setStepErrors({});
+
+    // Initialize stubs when entering preview step
+    if (currentStep === 5) {
+      const stubs = initializeStubs(paystubData, currentTaxRate);
+      setPaystubData((prev) => ({ ...prev, stubs }));
+    }
+
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     }
@@ -97,7 +108,7 @@ const Create = () => {
       const newErrors = { ...stepErrors };
       Object.keys(data).forEach((key) => {
         const val = data[key as keyof PaystubData];
-        if (val && typeof val === 'object') {
+        if (val && typeof val === "object" && !Array.isArray(val)) {
           const nested = val as unknown as Record<string, unknown>;
           Object.keys(nested).forEach((nestedKey) => {
             if (newErrors[nestedKey] && nested[nestedKey]) {
@@ -108,6 +119,10 @@ const Create = () => {
       });
       setStepErrors(newErrors);
     }
+  };
+
+  const handleUpdateStubs = (stubs: IndividualStubData[]) => {
+    setPaystubData((prev) => ({ ...prev, stubs }));
   };
 
   const handleSaveEdit = async () => {
@@ -203,6 +218,8 @@ const Create = () => {
           <StepPreview
             data={paystubData}
             onEditStep={goToStep}
+            onUpdateStubs={handleUpdateStubs}
+            taxRate={currentTaxRate}
           />
         );
       case 7:
@@ -270,7 +287,11 @@ const Create = () => {
                   }}
                   disabled={step.id > currentStep}
                   className={`flex items-center gap-1.5 ${
-                    step.id < currentStep ? "cursor-pointer" : step.id === currentStep ? "" : "cursor-not-allowed"
+                    step.id < currentStep
+                      ? "cursor-pointer"
+                      : step.id === currentStep
+                      ? ""
+                      : "cursor-not-allowed"
                   }`}
                 >
                   <div
@@ -282,11 +303,7 @@ const Create = () => {
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    {step.id < currentStep ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      step.id
-                    )}
+                    {step.id < currentStep ? <Check className="w-4 h-4" /> : step.id}
                   </div>
                   <span
                     className={`hidden md:inline text-xs font-medium ${
@@ -315,19 +332,13 @@ const Create = () => {
       </div>
 
       {/* Step Content */}
-      <main className="container mx-auto px-4 py-8">
-        {renderStep()}
-      </main>
+      <main className="container mx-auto px-4 py-8">{renderStep()}</main>
 
       {/* Navigation Footer */}
       <footer className="border-t border-border bg-card sticky bottom-0">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              disabled={currentStep === 1}
-            >
+            <Button variant="outline" onClick={handleBack} disabled={currentStep === 1}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
@@ -349,17 +360,12 @@ const Create = () => {
                 </>
               )}
               {currentStep < steps.length ? (
-                <Button
-                  onClick={handleNext}
-                  className="bg-gradient-primary hover:opacity-90"
-                >
+                <Button onClick={handleNext} className="bg-gradient-primary hover:opacity-90">
                   Next
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               ) : (
-                <Button className="bg-gradient-primary hover:opacity-90">
-                  Complete
-                </Button>
+                <Button className="bg-gradient-primary hover:opacity-90">Complete</Button>
               )}
             </div>
           </div>
