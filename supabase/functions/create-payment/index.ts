@@ -10,26 +10,19 @@ const corsHeaders = {
 
 const PAYSTUB_PRICE_ID = "price_1T6ofHGf3K1hj4vv0fSVSqWO";
 
-function calculateTotals(data: any) {
-  const grossPay = data.earnings.isHourly
-    ? data.earnings.regularHours * data.earnings.hourlyRate +
-      data.earnings.overtimeHours * data.earnings.overtimeRate +
-      data.earnings.bonus + data.earnings.commission + data.earnings.tips + data.earnings.otherEarnings
-    : data.earnings.salaryAmount +
-      data.earnings.bonus + data.earnings.commission + data.earnings.tips + data.earnings.otherEarnings;
-
-  const totalDeductions =
-    data.deductions.federalTax + data.deductions.stateTax +
-    data.deductions.socialSecurity + data.deductions.medicare +
-    data.deductions.retirement401k + data.deductions.healthInsurance +
-    data.deductions.otherDeductions;
-
-  return { grossPay, totalDeductions, netPay: grossPay - totalDeductions };
+function calcGross(stub: any, isHourly: boolean) {
+  const reg = isHourly ? stub.regularHours * stub.hourlyRate : stub.salaryAmount;
+  const ot = (stub.overtimeHours || 0) * (stub.overtimeRate || 0);
+  return reg + ot + (stub.bonus || 0) + (stub.commission || 0) + (stub.tips || 0) + (stub.otherEarnings || 0);
 }
 
-async function savePaystubServerSide(supabaseAdmin: any, userId: string, data: any): Promise<string> {
-  const { grossPay, totalDeductions, netPay } = calculateTotals(data);
+function calcDeductions(stub: any) {
+  return (stub.federalTax || 0) + (stub.stateTax || 0) + (stub.socialSecurity || 0) +
+    (stub.medicare || 0) + (stub.retirement401k || 0) + (stub.healthInsurance || 0) + (stub.otherDeductions || 0);
+}
 
+async function saveAllStubs(supabaseAdmin: any, userId: string, data: any): Promise<string[]> {
+  // Save employer once
   const { data: employer, error: empErr } = await supabaseAdmin
     .from("employers")
     .insert({
@@ -48,6 +41,7 @@ async function savePaystubServerSide(supabaseAdmin: any, userId: string, data: a
     .single();
   if (empErr) throw empErr;
 
+  // Save employee once
   const { data: employee, error: eeErr } = await supabaseAdmin
     .from("employees")
     .insert({
@@ -67,52 +61,97 @@ async function savePaystubServerSide(supabaseAdmin: any, userId: string, data: a
     .single();
   if (eeErr) throw eeErr;
 
-  const { data: paystub, error: psErr } = await supabaseAdmin
-    .from("paystubs")
-    .insert({
-      user_id: userId,
-      employer_id: employer.id,
-      employee_id: employee.id,
-      template_id: data.templateId,
-      pay_frequency: data.payPeriod.frequency,
-      pay_period_start: data.payPeriod.periodStart,
-      pay_period_end: data.payPeriod.periodEnd,
-      pay_date: data.payPeriod.payDate,
-      is_hourly: data.earnings.isHourly,
-      regular_hours: data.earnings.regularHours,
-      hourly_rate: data.earnings.hourlyRate,
-      salary_amount: data.earnings.salaryAmount,
-      overtime_hours: data.earnings.overtimeHours,
-      overtime_rate: data.earnings.overtimeRate,
-      bonus: data.earnings.bonus,
-      commission: data.earnings.commission,
-      tips: data.earnings.tips,
-      other_earnings: data.earnings.otherEarnings,
-      federal_tax: data.deductions.federalTax,
-      state_tax: data.deductions.stateTax,
-      social_security: data.deductions.socialSecurity,
-      medicare: data.deductions.medicare,
-      retirement_401k: data.deductions.retirement401k,
-      health_insurance: data.deductions.healthInsurance,
-      other_deductions: data.deductions.otherDeductions,
-      gross_pay: grossPay,
-      total_deductions: totalDeductions,
-      net_pay: netPay,
-      state_code: data.stateCode,
-      status: "draft",
-      is_watermarked: true,
-      ytd_gross: data.ytd?.grossPay || 0,
-      ytd_federal_tax: data.ytd?.federalTax || 0,
-      ytd_state_tax: data.ytd?.stateTax || 0,
-      ytd_social_security: data.ytd?.socialSecurity || 0,
-      ytd_medicare: data.ytd?.medicare || 0,
-      ytd_net: data.ytd?.netPay || 0,
-    })
-    .select("id")
-    .single();
-  if (psErr) throw psErr;
+  const stubs = data.stubs && data.stubs.length > 0 ? data.stubs : [null];
+  const isHourly = data.earnings?.isHourly ?? true;
+  const paystubIds: string[] = [];
 
-  return paystub.id;
+  for (const stub of stubs) {
+    // Use per-stub data if available, otherwise fall back to base data
+    const earnings = stub ? {
+      regularHours: stub.regularHours,
+      hourlyRate: stub.hourlyRate,
+      salaryAmount: stub.salaryAmount,
+      overtimeHours: stub.overtimeHours,
+      overtimeRate: stub.overtimeRate,
+      bonus: stub.bonus,
+      commission: stub.commission,
+      tips: stub.tips,
+      otherEarnings: stub.otherEarnings,
+    } : data.earnings;
+
+    const deductions = stub ? {
+      federalTax: stub.federalTax,
+      stateTax: stub.stateTax,
+      socialSecurity: stub.socialSecurity,
+      medicare: stub.medicare,
+      retirement401k: stub.retirement401k,
+      healthInsurance: stub.healthInsurance,
+      otherDeductions: stub.otherDeductions,
+    } : data.deductions;
+
+    const periodStart = stub?.periodStart || data.payPeriod.periodStart;
+    const periodEnd = stub?.periodEnd || data.payPeriod.periodEnd;
+    const payDate = stub?.payDate || data.payPeriod.payDate;
+
+    const grossPay = stub ? calcGross(stub, isHourly) : calcGross(earnings, isHourly);
+    const totalDeductions = stub ? calcDeductions(stub) : calcDeductions(deductions);
+    const netPay = grossPay - totalDeductions;
+
+    const ytdGross = stub?.ytdGrossPay || data.ytd?.grossPay || 0;
+    const ytdFederal = stub?.ytdFederalTax || data.ytd?.federalTax || 0;
+    const ytdState = stub?.ytdStateTax || data.ytd?.stateTax || 0;
+    const ytdSS = stub?.ytdSocialSecurity || data.ytd?.socialSecurity || 0;
+    const ytdMed = stub?.ytdMedicare || data.ytd?.medicare || 0;
+    const ytdNet = stub?.ytdNetPay || data.ytd?.netPay || 0;
+
+    const { data: paystub, error: psErr } = await supabaseAdmin
+      .from("paystubs")
+      .insert({
+        user_id: userId,
+        employer_id: employer.id,
+        employee_id: employee.id,
+        template_id: data.templateId,
+        pay_frequency: data.payPeriod.frequency,
+        pay_period_start: periodStart,
+        pay_period_end: periodEnd,
+        pay_date: payDate,
+        is_hourly: isHourly,
+        regular_hours: earnings.regularHours,
+        hourly_rate: earnings.hourlyRate,
+        salary_amount: earnings.salaryAmount,
+        overtime_hours: earnings.overtimeHours,
+        overtime_rate: earnings.overtimeRate,
+        bonus: earnings.bonus,
+        commission: earnings.commission,
+        tips: earnings.tips,
+        other_earnings: earnings.otherEarnings,
+        federal_tax: deductions.federalTax,
+        state_tax: deductions.stateTax,
+        social_security: deductions.socialSecurity,
+        medicare: deductions.medicare,
+        retirement_401k: deductions.retirement401k,
+        health_insurance: deductions.healthInsurance,
+        other_deductions: deductions.otherDeductions,
+        gross_pay: grossPay,
+        total_deductions: totalDeductions,
+        net_pay: netPay,
+        state_code: data.stateCode,
+        status: "draft",
+        is_watermarked: true,
+        ytd_gross: ytdGross,
+        ytd_federal_tax: ytdFederal,
+        ytd_state_tax: ytdState,
+        ytd_social_security: ytdSS,
+        ytd_medicare: ytdMed,
+        ytd_net: ytdNet,
+      })
+      .select("id")
+      .single();
+    if (psErr) throw psErr;
+    paystubIds.push(paystub.id);
+  }
+
+  return paystubIds;
 }
 
 Deno.serve(async (req) => {
@@ -139,7 +178,7 @@ Deno.serve(async (req) => {
 
     let userEmail: string;
     let userId: string;
-    let paystubId: string | null = typeof body.paystub_id === "string" ? body.paystub_id : null;
+    let paystubIds: string[] = [];
 
     // Check if authenticated user
     const authHeader = req.headers.get("Authorization");
@@ -150,12 +189,10 @@ Deno.serve(async (req) => {
         userEmail = data.user.email;
         userId = data.user.id;
 
-        // If authenticated user provided paystub_data, save it
-        if (paystubData && !paystubId) {
-          paystubId = await savePaystubServerSide(supabaseAdmin, userId, paystubData);
+        if (paystubData) {
+          paystubIds = await saveAllStubs(supabaseAdmin, userId, paystubData);
         }
       } else {
-        // Auth failed, fall through to guest flow
         if (!guestEmail) {
           return new Response(
             JSON.stringify({ error: "Email address is required" }),
@@ -165,10 +202,9 @@ Deno.serve(async (req) => {
         const result = await handleGuestUser(supabaseAdmin, guestEmail, paystubData, req);
         userEmail = result.email;
         userId = result.userId;
-        paystubId = result.paystubId;
+        paystubIds = result.paystubIds;
       }
     } else {
-      // Guest checkout flow
       if (!guestEmail) {
         return new Response(
           JSON.stringify({ error: "Email address is required" }),
@@ -178,7 +214,7 @@ Deno.serve(async (req) => {
       const result = await handleGuestUser(supabaseAdmin, guestEmail, paystubData, req);
       userEmail = result.email;
       userId = result.userId;
-      paystubId = result.paystubId;
+      paystubIds = result.paystubIds;
     }
 
     // Validate email
@@ -265,8 +301,10 @@ Deno.serve(async (req) => {
     }
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
-    const successUrl = paystubId
-      ? `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}&paystub_id=${paystubId}`
+    // Pass all paystub IDs as comma-separated in the URL
+    const idsParam = paystubIds.length > 0 ? paystubIds.join(",") : "";
+    const successUrl = idsParam
+      ? `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}&paystub_ids=${idsParam}`
       : `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
@@ -279,7 +317,8 @@ Deno.serve(async (req) => {
       metadata: {
         user_id: userId,
         ...(couponId ? { coupon_id: couponId } : {}),
-        ...(paystubId ? { paystub_id: paystubId } : {}),
+        // Store paystub IDs in metadata (Stripe allows 500 chars per value)
+        ...(idsParam ? { paystub_ids: idsParam } : {}),
       },
     };
 
@@ -296,7 +335,7 @@ Deno.serve(async (req) => {
         .select("current_uses")
         .eq("id", couponId)
         .single()
-        .then(({ data: couponData }) => {
+        .then(({ data: couponData }: any) => {
           if (couponData) {
             supabaseAdmin
               .from("coupons")
@@ -327,8 +366,7 @@ async function handleGuestUser(
   email: string,
   paystubData: any,
   req: Request
-): Promise<{ email: string; userId: string; paystubId: string | null }> {
-  // Check if user already exists
+): Promise<{ email: string; userId: string; paystubIds: string[] }> {
   const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
   const existingUser = existingUsers?.users?.find(
     (u: any) => u.email?.toLowerCase() === email.toLowerCase()
@@ -339,7 +377,6 @@ async function handleGuestUser(
   if (existingUser) {
     userId = existingUser.id;
   } else {
-    // Create a new user with a random password (they'll get a reset email after payment)
     const randomPassword = crypto.randomUUID() + "Aa1!";
     const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -351,11 +388,10 @@ async function handleGuestUser(
     userId = newUser.user.id;
   }
 
-  // Save paystub data server-side
-  let paystubId: string | null = null;
+  let paystubIds: string[] = [];
   if (paystubData) {
-    paystubId = await savePaystubServerSide(supabaseAdmin, userId, paystubData);
+    paystubIds = await saveAllStubs(supabaseAdmin, userId, paystubData);
   }
 
-  return { email, userId, paystubId };
+  return { email, userId, paystubIds };
 }

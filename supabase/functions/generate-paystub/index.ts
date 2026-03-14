@@ -437,7 +437,16 @@ function buildPdf(data: PaystubRequest, watermark: boolean = false): Uint8Array 
   // ─────────────────────────────────────────
   // YTD SUMMARY (if enabled)
   // ─────────────────────────────────────────
-  if (data.includeYTD && y > 140) {
+  // Always show YTD summary — fall back to current period values if YTD data is empty
+  const hasYtdData = data.ytd && (data.ytd.grossPay > 0 || data.ytd.netPay > 0);
+  const ytdGross = hasYtdData ? data.ytd.grossPay : grossPay;
+  const ytdFederal = hasYtdData ? data.ytd.federalTax : data.deductions.federalTax;
+  const ytdState = hasYtdData ? data.ytd.stateTax : data.deductions.stateTax;
+  const ytdSS = hasYtdData ? data.ytd.socialSecurity : data.deductions.socialSecurity;
+  const ytdMed = hasYtdData ? data.ytd.medicare : data.deductions.medicare;
+  const ytdNet = hasYtdData ? data.ytd.netPay : netPay;
+
+  if (y > 140) {
     setColor(0.35, 0.39, 0.45);
     text("YEAR-TO-DATE SUMMARY", ML, y, 8, true);
     setColor(0, 0, 0);
@@ -447,12 +456,12 @@ function buildPdf(data: PaystubRequest, watermark: boolean = false): Uint8Array 
     y -= 16;
 
     const ytdItems = [
-      { label: "YTD Gross Pay", value: data.ytd.grossPay },
-      { label: "YTD Federal Tax", value: data.ytd.federalTax },
-      { label: "YTD State Tax", value: data.ytd.stateTax },
-      { label: "YTD Social Security", value: data.ytd.socialSecurity },
-      { label: "YTD Medicare", value: data.ytd.medicare },
-      { label: "YTD Net Pay", value: data.ytd.netPay },
+      { label: "YTD Gross Pay", value: ytdGross },
+      { label: "YTD Federal Tax", value: ytdFederal },
+      { label: "YTD State Tax", value: ytdState },
+      { label: "YTD Social Security", value: ytdSS },
+      { label: "YTD Medicare", value: ytdMed },
+      { label: "YTD Net Pay", value: ytdNet },
     ].filter(item => item.value > 0);
 
     // Render in 3-column layout

@@ -36,11 +36,10 @@ Deno.serve(async (req) => {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     const paid = session.payment_status === "paid";
 
-    // Get the user_id from metadata (set during create-payment)
     const userId = session.metadata?.user_id;
     const sessionEmail = session.customer_details?.email || session.customer_email;
 
-    // Verify via auth header if present, otherwise use metadata
+    // Verify user
     const authHeader = req.headers.get("Authorization");
     let verifiedUserId: string | null = null;
 
@@ -52,7 +51,6 @@ Deno.serve(async (req) => {
       const token = authHeader.replace("Bearer ", "");
       const { data, error: authError } = await supabaseClient.auth.getUser(token);
       if (!authError && data.user) {
-        // Authenticated user - verify email matches
         if (sessionEmail?.toLowerCase() !== data.user.email?.toLowerCase()) {
           return new Response(
             JSON.stringify({ verified: false, error: "Session does not belong to this user" }),
@@ -63,9 +61,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fall back to metadata user_id if not authenticated
     if (!verifiedUserId && userId) {
-      // Verify the metadata user_id matches the session email
       const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
       if (userData?.user?.email?.toLowerCase() === sessionEmail?.toLowerCase()) {
         verifiedUserId = userId;
@@ -79,32 +75,34 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If paid and paystub_id is in metadata, mark paystub as completed
-    if (paid && session.metadata?.paystub_id) {
-      const paystubId = session.metadata.paystub_id;
+    // Handle multiple paystub IDs
+    const paystubIdsStr = session.metadata?.paystub_ids || "";
+    const paystubIds = paystubIdsStr ? paystubIdsStr.split(",").filter(Boolean) : [];
+
+    if (paid && paystubIds.length > 0) {
+      // Mark all paystubs as completed
       await supabaseAdmin
         .from("paystubs")
         .update({ status: "completed", is_watermarked: false })
-        .eq("id", paystubId)
+        .in("id", paystubIds)
         .eq("user_id", verifiedUserId);
 
-      // Record transaction
+      // Record transaction for the batch
       await supabaseAdmin.from("transactions").insert({
         user_id: verifiedUserId,
-        paystub_id: paystubId,
+        paystub_id: paystubIds[0], // reference first stub
         amount: (session.amount_total || 499) / 100,
         currency: session.currency || "usd",
         status: "succeeded",
         stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : null,
-        description: "Pay-per-use paystub purchase",
+        description: `Pay-per-use paystub purchase (${paystubIds.length} stub${paystubIds.length > 1 ? "s" : ""})`,
       });
     }
 
-    // Send password reset email for new users so they can set their password
+    // Send password reset email for new users
     if (paid && sessionEmail) {
       const origin = req.headers.get("origin") || "https://trustypay-generator.lovable.app";
       try {
-        // Only send if user hasn't logged in before (no last_sign_in_at or very recent creation)
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(verifiedUserId);
         if (userData?.user && !userData.user.last_sign_in_at) {
           await supabaseAdmin.auth.admin.generateLink({
@@ -117,7 +115,6 @@ Deno.serve(async (req) => {
         }
       } catch (emailErr) {
         console.error("Failed to send setup email:", emailErr);
-        // Don't fail the payment verification if email fails
       }
     }
 
@@ -127,7 +124,7 @@ Deno.serve(async (req) => {
         status: session.payment_status,
         amount_total: session.amount_total,
         currency: session.currency,
-        paystub_id: session.metadata?.paystub_id || null,
+        paystub_ids: paystubIds,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
