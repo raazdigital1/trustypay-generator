@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [{ price: priceId || "price_1T6P0BGf3K1hj4vvDSuYmNEv", quantity: 1 }],
+      line_items: [{ price: priceId || "price_1TAs8CBkPwAJbIJo0cCT1syz", quantity: 1 }],
       mode: "subscription",
       success_url: `${req.headers.get("origin")}/dashboard?checkout=success`,
       cancel_url: `${req.headers.get("origin")}/dashboard?checkout=canceled`,

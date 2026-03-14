@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { loadPaystubFromDb } from "@/lib/paystub-db";
 import { svgToPng } from "@/lib/svg-to-png";
 
-const PRO_PRICE_ID = "price_1T6P0BGf3K1hj4vvDSuYmNEv";
+const PRO_PRICE_ID = "price_1TAs8CBkPwAJbIJo0cCT1syz";
 
 interface PaystubRecord {
   id: string;

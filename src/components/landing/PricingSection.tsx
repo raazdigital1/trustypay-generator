@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
-const PRO_PRICE_ID = "price_1T6P0BGf3K1hj4vvDSuYmNEv";
+const PRO_PRICE_ID = "price_1TAs8CBkPwAJbIJo0cCT1syz";
 
 const PricingSection = () => {
   const { user } = useAuth();
