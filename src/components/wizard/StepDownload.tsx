@@ -94,6 +94,51 @@ const StepDownload = ({ data }: StepDownloadProps) => {
     }
   };
 
+  /** Build the payload for a single stub, merging per-stub data into the base template */
+  const buildStubPayload = (stub: IndividualStubData) => {
+    const grossPay = calculateGrossPay(stub, data.earnings.isHourly);
+    const totalDed = calculateTotalDeductions(stub);
+    const netPay = grossPay - totalDed;
+    return {
+      ...data,
+      earnings: {
+        ...data.earnings,
+        regularHours: stub.regularHours,
+        overtimeHours: stub.overtimeHours,
+        hourlyRate: stub.hourlyRate,
+        overtimeRate: stub.overtimeRate,
+        salaryAmount: stub.salaryAmount,
+        bonus: stub.bonus,
+        commission: stub.commission,
+        tips: stub.tips,
+        otherEarnings: stub.otherEarnings,
+      },
+      deductions: {
+        federalTax: stub.federalTax,
+        stateTax: stub.stateTax,
+        socialSecurity: stub.socialSecurity,
+        medicare: stub.medicare,
+        retirement401k: stub.retirement401k,
+        healthInsurance: stub.healthInsurance,
+        otherDeductions: stub.otherDeductions,
+      },
+      payPeriod: {
+        ...data.payPeriod,
+        periodStart: stub.periodStart,
+        periodEnd: stub.periodEnd,
+        payDate: stub.payDate,
+      },
+      ytd: {
+        grossPay: stub.ytdGrossPay,
+        federalTax: stub.ytdFederalTax,
+        stateTax: stub.ytdStateTax,
+        socialSecurity: stub.ytdSocialSecurity,
+        medicare: stub.ytdMedicare,
+        netPay: stub.ytdNetPay,
+      },
+    };
+  };
+
   const generateSingleStub = async (
     stubData: typeof data,
     format: "pdf" | "png",
