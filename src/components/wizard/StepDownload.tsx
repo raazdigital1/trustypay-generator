@@ -177,30 +177,34 @@ const StepDownload = ({ data }: StepDownloadProps) => {
     }
     try {
       if (format === "pdf" || format === "png") {
-        const payDates = data.payPeriod.payDates || [data.payPeriod.payDate];
-        const numberOfStubs = data.payPeriod.numberOfStubs || 1;
-        const datesToProcess = payDates.slice(0, numberOfStubs);
+        const stubs = data.stubs;
 
-        if (datesToProcess.length > 1 && !watermark) {
-          setDownloadProgress({ current: 0, total: datesToProcess.length });
-          for (let i = 0; i < datesToProcess.length; i++) {
-            setDownloadProgress({ current: i + 1, total: datesToProcess.length });
-            const stubData = {
-              ...data,
-              payPeriod: { ...data.payPeriod, payDate: datesToProcess[i] },
-            };
-            await generateSingleStub(stubData, format, false, i);
-            // Small delay between downloads so browser handles them
-            if (i < datesToProcess.length - 1) {
+        if (stubs.length > 1 && !watermark) {
+          setDownloadProgress({ current: 0, total: stubs.length });
+          for (let i = 0; i < stubs.length; i++) {
+            setDownloadProgress({ current: i + 1, total: stubs.length });
+            const stubPayload = buildStubPayload(stubs[i]);
+            await generateSingleStub(stubPayload, format, false, i);
+            if (i < stubs.length - 1) {
               await new Promise((r) => setTimeout(r, 800));
             }
           }
           setDownloadProgress(null);
           toast({
-            title: `${datesToProcess.length} Paystubs Downloaded!`,
-            description: `All ${datesToProcess.length} paystubs have been downloaded successfully.`,
+            title: `${stubs.length} Paystubs Downloaded!`,
+            description: `All ${stubs.length} paystubs have been downloaded successfully.`,
+          });
+        } else if (stubs.length === 1) {
+          const stubPayload = buildStubPayload(stubs[0]);
+          await generateSingleStub(stubPayload, format, watermark);
+          toast({
+            title: watermark ? "Sample Downloaded!" : `${format.toUpperCase()} Downloaded!`,
+            description: watermark
+              ? "Your watermarked sample paystub has been downloaded."
+              : "Your paystub has been downloaded successfully.",
           });
         } else {
+          // Fallback for no stubs (e.g., free sample before stubs initialized)
           await generateSingleStub(data, format, watermark);
           toast({
             title: watermark ? "Sample Downloaded!" : `${format.toUpperCase()} Downloaded!`,
