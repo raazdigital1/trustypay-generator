@@ -272,7 +272,7 @@ function buildPdf(data: PaystubRequest, watermark: boolean = false): Uint8Array 
     text(data.employee.employeeId, ppX + 65, infoBoxY + infoBoxH - 52, 8);
   }
   text(`State:`, ppX, infoBoxY + infoBoxH - 62, 8, true);
-  text(data.stateCode || data.employer.state, ppX + 55, infoBoxY + infoBoxH - 62, 8);
+  text(data.employee.state || data.stateCode || "", ppX + 55, infoBoxY + infoBoxH - 62, 8);
 
   y = infoBoxY - 20;
 
@@ -633,7 +633,7 @@ function buildSvg(data: PaystubRequest, watermark: boolean = false): string {
   if (data.employee.employeeId) {
     parts.push(`<text x="${ppX}" y="${y + 66}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="10"><tspan font-weight="bold">Employee ID: </tspan>${esc(data.employee.employeeId)}</text>`);
   }
-  parts.push(`<text x="${ppX}" y="${y + 80}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="10"><tspan font-weight="bold">State: </tspan>${esc(data.stateCode || data.employer.state)}</text>`);
+  parts.push(`<text x="${ppX}" y="${y + 80}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="10"><tspan font-weight="bold">State: </tspan>${esc(data.employee.state || data.stateCode || "")}</text>`);
 
   y += boxH + 24;
 

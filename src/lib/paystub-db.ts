@@ -189,6 +189,7 @@ export async function loadPaystubFromDb(paystubId: string): Promise<PaystubData 
     },
     stateCode: ps.state_code || "CA",
     includeYTD: true,
+    stubs: [],
   };
 }
 
