@@ -63,6 +63,34 @@ export interface YTDInfo {
   netPay: number;
 }
 
+export interface IndividualStubData {
+  periodStart: string;
+  periodEnd: string;
+  payDate: string;
+  regularHours: number;
+  overtimeHours: number;
+  hourlyRate: number;
+  overtimeRate: number;
+  salaryAmount: number;
+  bonus: number;
+  commission: number;
+  tips: number;
+  otherEarnings: number;
+  federalTax: number;
+  stateTax: number;
+  socialSecurity: number;
+  medicare: number;
+  retirement401k: number;
+  healthInsurance: number;
+  otherDeductions: number;
+  ytdGrossPay: number;
+  ytdFederalTax: number;
+  ytdStateTax: number;
+  ytdSocialSecurity: number;
+  ytdMedicare: number;
+  ytdNetPay: number;
+}
+
 export interface PaystubData {
   templateId: string;
   employer: EmployerInfo;
@@ -73,6 +101,7 @@ export interface PaystubData {
   ytd: YTDInfo;
   stateCode: string;
   includeYTD: boolean;
+  stubs: IndividualStubData[];
 }
 
 export const defaultPaystubData: PaystubData = {
