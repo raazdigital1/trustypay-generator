@@ -8,7 +8,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PAYSTUB_PRICE_ID = "price_1T6ofHGf3K1hj4vv0fSVSqWO";
+const PAYSTUB_PRICE_ID = "price_1TAs6NBkPwAJbIJoR20793LB";
 
 function calcGross(stub: any, isHourly: boolean) {
   const reg = isHourly ? stub.regularHours * stub.hourlyRate : stub.salaryAmount;
