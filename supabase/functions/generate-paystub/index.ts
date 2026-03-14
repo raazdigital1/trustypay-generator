@@ -633,7 +633,7 @@ function buildSvg(data: PaystubRequest, watermark: boolean = false): string {
   if (data.employee.employeeId) {
     parts.push(`<text x="${ppX}" y="${y + 66}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="10"><tspan font-weight="bold">Employee ID: </tspan>${esc(data.employee.employeeId)}</text>`);
   }
-  parts.push(`<text x="${ppX}" y="${y + 80}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="10"><tspan font-weight="bold">State: </tspan>${esc(data.stateCode || data.employer.state)}</text>`);
+  parts.push(`<text x="${ppX}" y="${y + 80}" fill="#000" font-family="Helvetica,Arial,sans-serif" font-size="10"><tspan font-weight="bold">State: </tspan>${esc(data.employee.state || data.stateCode || "")}</text>`);
 
   y += boxH + 24;
 
