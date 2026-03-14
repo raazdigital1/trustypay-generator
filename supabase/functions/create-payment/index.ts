@@ -136,7 +136,6 @@ Deno.serve(async (req) => {
     const paystubData = body.paystub_data || null;
     const quantity = Math.min(Math.max(parseInt(body.quantity) || 1, 1), 10);
     const guestEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : null;
-    const guestEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : null;
 
     let userEmail: string;
     let userId: string;
