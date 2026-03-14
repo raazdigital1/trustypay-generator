@@ -272,7 +272,7 @@ function buildPdf(data: PaystubRequest, watermark: boolean = false): Uint8Array 
     text(data.employee.employeeId, ppX + 65, infoBoxY + infoBoxH - 52, 8);
   }
   text(`State:`, ppX, infoBoxY + infoBoxH - 62, 8, true);
-  text(data.stateCode || data.employer.state, ppX + 55, infoBoxY + infoBoxH - 62, 8);
+  text(data.employee.state || data.stateCode || "", ppX + 55, infoBoxY + infoBoxH - 62, 8);
 
   y = infoBoxY - 20;
 
