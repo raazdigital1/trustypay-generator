@@ -15,8 +15,6 @@ import AdminAuditLogs from "@/components/admin/AdminAuditLogs";
 import AdminCoupons from "@/components/admin/AdminCoupons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect } from "react";
 
 const Admin = () => {
   const { isAdmin, loading, user } = useAdminAuth();
