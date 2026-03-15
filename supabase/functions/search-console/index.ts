@@ -186,9 +186,10 @@ serve(async (req) => {
 
     const apiData = await apiResp.json();
     if (!apiResp.ok) {
-      console.error("Search Console API error:", apiData);
+      console.error("Search Console API error:", JSON.stringify(apiData));
+      const googleMessage = apiData?.error?.message || "Failed to fetch Search Console data";
       return new Response(
-        JSON.stringify({ error: "Failed to fetch Search Console data" }),
+        JSON.stringify({ error: googleMessage }),
         {
           status: 502,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
