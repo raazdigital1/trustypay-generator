@@ -46,6 +46,8 @@ const Admin = () => {
     switch (activeTab) {
       case "overview":
         return <AdminOverview />;
+      case "analytics":
+        return <AdminAnalytics />;
       case "users":
         return <AdminUsers />;
       case "billing":
