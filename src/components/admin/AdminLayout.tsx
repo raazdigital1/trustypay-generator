@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 export type AdminTab =
   | "overview"
+  | "analytics"
   | "users"
   | "billing"
   | "blog"
