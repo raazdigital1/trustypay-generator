@@ -141,6 +141,7 @@ serve(async (req) => {
     // Get service account credentials
     const saJson = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON");
     if (!saJson) {
+      console.error("GOOGLE_SERVICE_ACCOUNT_JSON secret is not set");
       return new Response(
         JSON.stringify({ error: "Google service account not configured" }),
         {
@@ -150,7 +151,19 @@ serve(async (req) => {
       );
     }
 
-    const serviceAccount = JSON.parse(saJson);
+    let serviceAccount;
+    try {
+      serviceAccount = JSON.parse(saJson);
+    } catch (parseErr) {
+      console.error("Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON. First 20 chars:", saJson.substring(0, 20));
+      return new Response(
+        JSON.stringify({ error: "Invalid service account JSON format. Please re-enter the secret with the full JSON content of your service account key file." }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
     const accessToken = await getAccessToken(serviceAccount);
 
     // Query Search Console API
