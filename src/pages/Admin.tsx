@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import AdminLayout, { AdminTab } from "@/components/admin/AdminLayout";
 import AdminOverview from "@/components/admin/AdminOverview";
+import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import AdminUsers from "@/components/admin/AdminUsers";
 import AdminBlogPosts from "@/components/admin/AdminBlogPosts";
 import AdminTaxRates from "@/components/admin/AdminTaxRates";
@@ -43,6 +44,8 @@ const Admin = () => {
     switch (activeTab) {
       case "overview":
         return <AdminOverview />;
+      case "analytics":
+        return <AdminAnalytics />;
       case "users":
         return <AdminUsers />;
       case "billing":
