@@ -47,6 +47,8 @@ const Admin = () => {
         return <AdminOverview />;
       case "analytics":
         return <AdminAnalytics />;
+      case "search-console":
+        return <AdminSearchConsole />;
       case "users":
         return <AdminUsers />;
       case "billing":
