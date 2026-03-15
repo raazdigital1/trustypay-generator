@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   FileText, LayoutDashboard, Users, Newspaper, Calculator,
-  Receipt, CreditCard, DollarSign, Shield, LogOut, ChevronLeft, ChevronRight, Menu, AlertTriangle, Tag, BarChart3,
+  Receipt, CreditCard, DollarSign, Shield, LogOut, ChevronLeft, ChevronRight, Menu, AlertTriangle, Tag, BarChart3, Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
