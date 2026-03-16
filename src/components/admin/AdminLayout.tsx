@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 export type AdminTab =
   | "overview"
   | "analytics"
-  | "search-console"
+  
   | "users"
   | "billing"
   | "blog"
