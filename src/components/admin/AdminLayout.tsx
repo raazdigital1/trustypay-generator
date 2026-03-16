@@ -32,7 +32,7 @@ interface AdminLayoutProps {
 const navItems: { id: AdminTab; label: string; icon: React.ElementType }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "search-console", label: "Search Console", icon: Globe },
+  
   { id: "users", label: "Users", icon: Users },
   { id: "billing", label: "Customers", icon: CreditCard },
   { id: "paystubs", label: "Paystubs", icon: Receipt },
