@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   FileText, LayoutDashboard, Users, Newspaper, Calculator,
-  Receipt, CreditCard, DollarSign, Shield, LogOut, ChevronLeft, ChevronRight, Menu, AlertTriangle, Tag, BarChart3, Globe,
+  Receipt, CreditCard, DollarSign, Shield, LogOut, ChevronLeft, ChevronRight, Menu, AlertTriangle, Tag, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type AdminTab =
   | "overview"
   | "analytics"
-  | "search-console"
+  
   | "users"
   | "billing"
   | "blog"
@@ -32,7 +32,7 @@ interface AdminLayoutProps {
 const navItems: { id: AdminTab; label: string; icon: React.ElementType }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "search-console", label: "Search Console", icon: Globe },
+  
   { id: "users", label: "Users", icon: Users },
   { id: "billing", label: "Customers", icon: CreditCard },
   { id: "paystubs", label: "Paystubs", icon: Receipt },
