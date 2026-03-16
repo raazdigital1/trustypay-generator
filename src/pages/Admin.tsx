@@ -4,7 +4,7 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 import AdminLayout, { AdminTab } from "@/components/admin/AdminLayout";
 import AdminOverview from "@/components/admin/AdminOverview";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
-import AdminSearchConsole from "@/components/admin/AdminSearchConsole";
+
 import AdminUsers from "@/components/admin/AdminUsers";
 import AdminBlogPosts from "@/components/admin/AdminBlogPosts";
 import AdminTaxRates from "@/components/admin/AdminTaxRates";
