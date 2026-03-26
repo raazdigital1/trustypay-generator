@@ -444,7 +444,7 @@ const PaymentSection = ({
           <AlertDescription className="text-sm text-foreground">
             <span className="font-semibold">Employer & Authorized Use Only</span>
             <br />
-            PayStub Direct is for employers, self-employed individuals, and authorized payroll agents creating pay stubs for legitimate business record-keeping. Creating false pay stubs is illegal and may constitute wire fraud (18 U.S.C. § 1343), mail fraud, or state-level fraud offenses.{" "}
+            PayStub Wizard is for employers, self-employed individuals, and authorized payroll agents creating pay stubs for legitimate business record-keeping. Creating false pay stubs is illegal and may constitute wire fraud (18 U.S.C. § 1343), mail fraud, or state-level fraud offenses.{" "}
             <Link to="/terms" className="text-primary underline hover:text-primary/80 font-medium">
               Full Terms & Conditions
             </Link>
