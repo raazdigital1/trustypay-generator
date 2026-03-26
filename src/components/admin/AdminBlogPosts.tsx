@@ -49,6 +49,7 @@ const AdminBlogPosts = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Partial<BlogPost> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const fetchPosts = async () => {
     setLoading(true);
