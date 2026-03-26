@@ -3,7 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Loader2, Tag, X, Stamp, Mail } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Download, FileText, Image, FileSpreadsheet, CheckCircle, CreditCard, ShieldCheck, Loader2, Tag, X, Stamp, Mail, AlertTriangle } from "lucide-react";
+import { Link } from "react-router-dom";
 import { PaystubData, IndividualStubData } from "@/types/paystub";
 import { calculateGrossPay, calculateTotalDeductions } from "@/lib/stub-calculations";
 import { supabase } from "@/integrations/supabase/client";
