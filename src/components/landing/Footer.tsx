@@ -43,21 +43,13 @@ const Footer = () => {
               </span>
             </Link>
             <p className="text-background/70 text-sm mb-6 max-w-xs">
-              The most trusted paystub generator for small businesses, freelancers, 
-              and household employers across all 50 US states.
+              The most trusted paystub generator for small businesses, freelancers, and household employers across all
+              50 US states.
             </p>
             <div className="space-y-2 text-sm text-background/70">
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4" />
                 <span>support@paystubwizard.com</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4" />
-                <span>1-800-PAYSTUB</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4" />
-                <span>New York, NY</span>
               </div>
             </div>
           </div>
@@ -68,10 +60,7 @@ const Footer = () => {
             <ul className="space-y-2">
               {footerLinks.product.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    to={link.href}
-                    className="text-background/70 hover:text-background transition-colors text-sm"
-                  >
+                  <Link to={link.href} className="text-background/70 hover:text-background transition-colors text-sm">
                     {link.name}
                   </Link>
                 </li>
@@ -85,10 +74,7 @@ const Footer = () => {
             <ul className="space-y-2">
               {footerLinks.resources.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    to={link.href}
-                    className="text-background/70 hover:text-background transition-colors text-sm"
-                  >
+                  <Link to={link.href} className="text-background/70 hover:text-background transition-colors text-sm">
                     {link.name}
                   </Link>
                 </li>
@@ -102,10 +88,7 @@ const Footer = () => {
             <ul className="space-y-2">
               {footerLinks.company.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    to={link.href}
-                    className="text-background/70 hover:text-background transition-colors text-sm"
-                  >
+                  <Link to={link.href} className="text-background/70 hover:text-background transition-colors text-sm">
                     {link.name}
                   </Link>
                 </li>
@@ -119,10 +102,7 @@ const Footer = () => {
             <ul className="space-y-2">
               {footerLinks.legal.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    to={link.href}
-                    className="text-background/70 hover:text-background transition-colors text-sm"
-                  >
+                  <Link to={link.href} className="text-background/70 hover:text-background transition-colors text-sm">
                     {link.name}
                   </Link>
                 </li>
@@ -136,9 +116,7 @@ const Footer = () => {
       <div className="border-t border-background/10">
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-background/60">
-              © {currentYear} PayStub Wizard. All rights reserved.
-            </p>
+            <p className="text-sm text-background/60">© {currentYear} PayStub Wizard. All rights reserved.</p>
             <div className="flex items-center gap-6 text-sm text-background/60">
               <span>🔒 SSL Secured</span>
               <span>🏦 Bank Accepted</span>
