@@ -280,12 +280,65 @@ const AdminBlogPosts = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Featured Image URL</Label>
-                <Input
-                  value={(editingPost as any).featured_image_url || ""}
-                  onChange={(e) => updateField("featured_image_url", e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                />
+                <Label>Featured Image</Label>
+                {(editingPost as any).featured_image_url && (
+                  <div className="relative w-full max-w-xs">
+                    <img
+                      src={(editingPost as any).featured_image_url}
+                      alt="Featured"
+                      className="w-full h-32 object-cover rounded-md border"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-1 right-1 h-6 w-6"
+                      onClick={() => updateField("featured_image_url", "")}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+                <div>
+                  <label
+                    htmlFor="featured-image-upload"
+                    className="inline-flex items-center gap-2 cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {uploading ? "Uploading..." : "Upload Image"}
+                  </label>
+                  <input
+                    id="featured-image-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploading(true);
+                      try {
+                        const ext = file.name.split(".").pop();
+                        const filePath = `${crypto.randomUUID()}.${ext}`;
+                        const { error } = await supabase.storage
+                          .from("blog-images")
+                          .upload(filePath, file);
+                        if (error) throw error;
+                        const { data: urlData } = supabase.storage
+                          .from("blog-images")
+                          .getPublicUrl(filePath);
+                        updateField("featured_image_url", urlData.publicUrl);
+                        toast({ title: "Image uploaded" });
+                      } catch (err) {
+                        console.error("Upload error:", err);
+                        toast({ title: "Upload failed", variant: "destructive" });
+                      } finally {
+                        setUploading(false);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
