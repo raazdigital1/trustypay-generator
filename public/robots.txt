@@ -12,3 +12,7 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /dashboard
+
+Sitemap: https://trustypay-generator.lovable.app/sitemap.xml
