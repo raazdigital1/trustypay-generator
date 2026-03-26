@@ -15,4 +15,4 @@ Allow: /
 Disallow: /admin
 Disallow: /dashboard
 
-Sitemap: https://trustypay-generator.lovable.app/sitemap.xml
+Sitemap: https://paystubwizard.com/sitemap.xml
