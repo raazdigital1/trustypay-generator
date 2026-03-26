@@ -438,11 +438,40 @@ const PaymentSection = ({
           {couponError && <p className="text-xs text-destructive">{couponError}</p>}
         </div>
 
+        {/* Legal Warning & Confirmation */}
+        <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertDescription className="text-sm text-foreground">
+            <span className="font-semibold">Employer & Authorized Use Only</span>
+            <br />
+            PayStub Direct is for employers, self-employed individuals, and authorized payroll agents creating pay stubs for legitimate business record-keeping. Creating false pay stubs is illegal and may constitute wire fraud (18 U.S.C. § 1343), mail fraud, or state-level fraud offenses.{" "}
+            <Link to="/terms" className="text-primary underline hover:text-primary/80 font-medium">
+              Full Terms & Conditions
+            </Link>
+          </AlertDescription>
+        </Alert>
+
+        <div className="flex items-start gap-3 p-4 rounded-lg border border-border bg-muted/30">
+          <Checkbox
+            id="legal-confirm"
+            checked={hasConfirmed}
+            onCheckedChange={(checked) => setHasConfirmed(checked === true)}
+            className="mt-0.5"
+          />
+          <label htmlFor="legal-confirm" className="text-sm text-foreground leading-relaxed cursor-pointer select-none">
+            I confirm that I am an employer or authorized payroll agent, the information entered is accurate and reflects genuine employment. I agree to the{" "}
+            <Link to="/terms" className="text-primary underline hover:text-primary/80 font-medium">
+              Terms & Conditions
+            </Link>{" "}
+            and understand that misuse may be reported to law enforcement.
+          </label>
+        </div>
+
         <div className="space-y-4 pt-2">
           <Button
             className="w-full bg-gradient-primary hover:opacity-90 text-lg h-12"
             onClick={onPay}
-            disabled={isPaying}
+            disabled={isPaying || !hasConfirmed}
           >
             {isPaying ? (
               <span className="flex items-center gap-2">
