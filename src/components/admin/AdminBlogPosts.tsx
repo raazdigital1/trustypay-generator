@@ -11,8 +11,9 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { Newspaper, Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
+import { Newspaper, Plus, Pencil, Trash2, RefreshCw, Upload, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { v4 as uuidv4 } from "crypto";
 
 interface BlogPost {
   id: string;
