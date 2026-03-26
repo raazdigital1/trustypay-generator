@@ -336,6 +336,7 @@ const PaymentSection = ({
   couponCode, setCouponCode, appliedCoupon, setAppliedCoupon, couponError, setCouponError,
   isFreeDownloading, onFreeDownload, quantity,
 }: PaymentSectionProps) => {
+  const [hasConfirmed, setHasConfirmed] = useState(false);
   const totalPrice = 4.99 * quantity;
   const handleApplyCoupon = () => {
     const code = couponCode.trim().toUpperCase();
