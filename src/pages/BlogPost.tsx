@@ -144,9 +144,12 @@ const BlogPost = () => {
             </div>
           )}
 
-          <div className="prose prose-neutral dark:prose-invert max-w-none whitespace-pre-wrap text-foreground">
-            {post?.content}
-          </div>
+          {post?.content && (
+            <div
+              className="prose prose-neutral dark:prose-invert max-w-none text-foreground"
+              dangerouslySetInnerHTML={{ __html: post.content }}
+            />
+          )}
         </article>
       </main>
       <Footer />
