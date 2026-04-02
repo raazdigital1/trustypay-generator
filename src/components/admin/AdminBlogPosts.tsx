@@ -4,7 +4,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,6 +12,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Newspaper, Plus, Pencil, Trash2, RefreshCw, Upload, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
 
 
 interface BlogPost {
