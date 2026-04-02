@@ -116,9 +116,9 @@ const AdminBlogPosts = () => {
       setDialogOpen(false);
       setEditingPost(null);
       fetchPosts();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Save error:", err);
-      toast({ title: "Save failed", variant: "destructive" });
+      toast({ title: "Save failed", description: err?.message || "Unknown error", variant: "destructive" });
     } finally {
       setSaving(false);
     }
