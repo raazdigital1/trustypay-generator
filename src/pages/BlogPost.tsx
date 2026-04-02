@@ -146,7 +146,7 @@ const BlogPost = () => {
 
           {post?.content && (
             <div
-              className="prose prose-neutral dark:prose-invert max-w-none text-foreground break-words overflow-hidden [&_*]:max-w-full [&_img]:h-auto [&_pre]:overflow-x-auto [&_table]:overflow-x-auto"
+              className="prose prose-neutral dark:prose-invert max-w-none text-foreground [overflow-wrap:normal] [word-break:normal] [&_*]:max-w-full [&_p]:whitespace-normal [&_p]:break-normal [&_p]:hyphens-none [&_li]:whitespace-normal [&_li]:break-normal [&_li]:hyphens-none [&_h1]:break-normal [&_h1]:hyphens-none [&_h2]:break-normal [&_h2]:hyphens-none [&_h3]:break-normal [&_h3]:hyphens-none [&_a]:break-all [&_img]:h-auto [&_pre]:overflow-x-auto [&_table]:block [&_table]:overflow-x-auto"
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
           )}
