@@ -146,7 +146,7 @@ const BlogPost = () => {
 
           {post?.content && (
             <div
-              className="prose prose-neutral dark:prose-invert max-w-none text-foreground"
+              className="prose prose-neutral dark:prose-invert max-w-none text-foreground break-words overflow-hidden [&_*]:max-w-full [&_img]:h-auto [&_pre]:overflow-x-auto [&_table]:overflow-x-auto"
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
           )}
