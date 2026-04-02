@@ -4,7 +4,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,6 +12,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Newspaper, Plus, Pencil, Trash2, RefreshCw, Upload, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
 
 
 interface BlogPost {
@@ -263,7 +264,8 @@ const AdminBlogPosts = () => {
 
               <div className="space-y-2">
                 <Label>Excerpt</Label>
-                <Textarea
+                <textarea
+                  className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={editingPost.excerpt || ""}
                   onChange={(e) => updateField("excerpt", e.target.value)}
                   rows={2}
@@ -272,10 +274,22 @@ const AdminBlogPosts = () => {
 
               <div className="space-y-2">
                 <Label>Content</Label>
-                <Textarea
+                <ReactQuill
+                  theme="snow"
                   value={editingPost.content || ""}
-                  onChange={(e) => updateField("content", e.target.value)}
-                  rows={10}
+                  onChange={(value) => updateField("content", value)}
+                  modules={{
+                    toolbar: [
+                      [{ header: [1, 2, 3, 4, false] }],
+                      ["bold", "italic", "underline", "strike"],
+                      [{ list: "ordered" }, { list: "bullet" }],
+                      ["blockquote", "code-block"],
+                      ["link", "image"],
+                      [{ align: [] }],
+                      ["clean"],
+                    ],
+                  }}
+                  className="bg-background [&_.ql-toolbar]:border-input [&_.ql-container]:border-input [&_.ql-toolbar]:rounded-t-md [&_.ql-container]:rounded-b-md [&_.ql-editor]:min-h-[200px]"
                 />
               </div>
 
