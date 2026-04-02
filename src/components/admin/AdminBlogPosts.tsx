@@ -264,7 +264,8 @@ const AdminBlogPosts = () => {
 
               <div className="space-y-2">
                 <Label>Excerpt</Label>
-                <Textarea
+                <textarea
+                  className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={editingPost.excerpt || ""}
                   onChange={(e) => updateField("excerpt", e.target.value)}
                   rows={2}
@@ -273,10 +274,22 @@ const AdminBlogPosts = () => {
 
               <div className="space-y-2">
                 <Label>Content</Label>
-                <Textarea
+                <ReactQuill
+                  theme="snow"
                   value={editingPost.content || ""}
-                  onChange={(e) => updateField("content", e.target.value)}
-                  rows={10}
+                  onChange={(value) => updateField("content", value)}
+                  modules={{
+                    toolbar: [
+                      [{ header: [1, 2, 3, 4, false] }],
+                      ["bold", "italic", "underline", "strike"],
+                      [{ list: "ordered" }, { list: "bullet" }],
+                      ["blockquote", "code-block"],
+                      ["link", "image"],
+                      [{ align: [] }],
+                      ["clean"],
+                    ],
+                  }}
+                  className="bg-background [&_.ql-toolbar]:border-input [&_.ql-container]:border-input [&_.ql-toolbar]:rounded-t-md [&_.ql-container]:rounded-b-md [&_.ql-editor]:min-h-[200px]"
                 />
               </div>
 
