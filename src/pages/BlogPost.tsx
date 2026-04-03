@@ -53,7 +53,12 @@ const BlogPost = () => {
 
   const sanitizedContent = useMemo(() => {
     if (!post?.content) return "";
-    return DOMPurify.sanitize(post.content, {
+
+    const normalizedContent = post.content
+      .replace(/&nbsp;|&#160;/gi, " ")
+      .replace(/\u00A0/g, " ");
+
+    return DOMPurify.sanitize(normalizedContent, {
       ALLOWED_TAGS: ["h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "ul", "ol", "li", "a", "strong", "em", "b", "i", "u", "s", "blockquote", "pre", "code", "img", "table", "thead", "tbody", "tr", "th", "td", "hr", "span", "div", "figure", "figcaption", "sub", "sup"],
       ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "width", "height", "class", "style", "id"],
     });
