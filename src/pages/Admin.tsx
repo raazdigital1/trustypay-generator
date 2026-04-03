@@ -7,6 +7,7 @@ import AdminAnalytics from "@/components/admin/AdminAnalytics";
 
 import AdminUsers from "@/components/admin/AdminUsers";
 import AdminBlogPosts from "@/components/admin/AdminBlogPosts";
+import AdminComments from "@/components/admin/AdminComments";
 import AdminTaxRates from "@/components/admin/AdminTaxRates";
 import AdminPaystubs from "@/components/admin/AdminPaystubs";
 import AdminTransactions from "@/components/admin/AdminTransactions";
@@ -55,6 +56,8 @@ const Admin = () => {
         return <AdminBilling />;
       case "blog":
         return <AdminBlogPosts />;
+      case "comments":
+        return <AdminComments />;
       case "tax-rates":
         return <AdminTaxRates />;
       case "paystubs":

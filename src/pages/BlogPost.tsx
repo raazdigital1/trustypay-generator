@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Calendar, User, ArrowLeft } from "lucide-react";
+import BlogComments from "@/components/blog/BlogComments";
 
 interface BlogPostData {
   id: string;
@@ -167,6 +168,8 @@ const BlogPost = () => {
               dangerouslySetInnerHTML={{ __html: sanitizedContent }}
             />
           )}
+
+          {post && <BlogComments postId={post.id} />}
         </article>
       </main>
       <Footer />

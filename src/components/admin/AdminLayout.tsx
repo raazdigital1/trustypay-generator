@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   FileText, LayoutDashboard, Users, Newspaper, Calculator,
-  Receipt, CreditCard, DollarSign, Shield, LogOut, ChevronLeft, ChevronRight, Menu, AlertTriangle, Tag, BarChart3,
+  Receipt, CreditCard, DollarSign, Shield, LogOut, ChevronLeft, ChevronRight, Menu, AlertTriangle, Tag, BarChart3, MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ export type AdminTab =
   | "users"
   | "billing"
   | "blog"
+  | "comments"
   | "tax-rates"
   | "paystubs"
   | "transactions"
@@ -40,6 +41,7 @@ const navItems: { id: AdminTab; label: string; icon: React.ElementType }[] = [
   { id: "fraud-flags", label: "Fraud Flags", icon: AlertTriangle },
   { id: "coupons", label: "Coupons", icon: Tag },
   { id: "blog", label: "Blog Posts", icon: Newspaper },
+  { id: "comments", label: "Comments", icon: MessageSquare },
   { id: "tax-rates", label: "Tax Rates", icon: Calculator },
   { id: "audit-logs", label: "Audit Logs", icon: Shield },
 ];
