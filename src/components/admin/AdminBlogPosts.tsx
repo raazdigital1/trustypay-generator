@@ -241,7 +241,13 @@ const AdminBlogPosts = () => {
                   <Label>Title *</Label>
                   <Input
                     value={editingPost.title || ""}
-                    onChange={(e) => updateField("title", e.target.value)}
+                    onChange={(e) => {
+                      const title = e.target.value;
+                      updateField("title", title);
+                      if (!editingPost.id) {
+                        updateField("slug", generateSlug(title));
+                      }
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
