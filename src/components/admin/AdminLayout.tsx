@@ -16,6 +16,7 @@ export type AdminTab =
   | "users"
   | "billing"
   | "blog"
+  | "comments"
   | "tax-rates"
   | "paystubs"
   | "transactions"
