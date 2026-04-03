@@ -53,7 +53,7 @@ const generateSlug = (title: string): string => {
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
 };
-
+const AdminBlogPosts = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
