@@ -168,6 +168,8 @@ const BlogPost = () => {
               dangerouslySetInnerHTML={{ __html: sanitizedContent }}
             />
           )}
+
+          {post && <BlogComments postId={post.id} />}
         </article>
       </main>
       <Footer />

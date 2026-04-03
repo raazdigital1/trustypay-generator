@@ -41,6 +41,7 @@ const navItems: { id: AdminTab; label: string; icon: React.ElementType }[] = [
   { id: "fraud-flags", label: "Fraud Flags", icon: AlertTriangle },
   { id: "coupons", label: "Coupons", icon: Tag },
   { id: "blog", label: "Blog Posts", icon: Newspaper },
+  { id: "comments", label: "Comments", icon: MessageSquare },
   { id: "tax-rates", label: "Tax Rates", icon: Calculator },
   { id: "audit-logs", label: "Audit Logs", icon: Shield },
 ];

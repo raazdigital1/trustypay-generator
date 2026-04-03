@@ -56,6 +56,8 @@ const Admin = () => {
         return <AdminBilling />;
       case "blog":
         return <AdminBlogPosts />;
+      case "comments":
+        return <AdminComments />;
       case "tax-rates":
         return <AdminTaxRates />;
       case "paystubs":
