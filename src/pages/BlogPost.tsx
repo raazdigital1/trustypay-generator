@@ -51,6 +51,14 @@ const BlogPost = () => {
     fetchPost();
   }, [slug]);
 
+  const sanitizedContent = useMemo(() => {
+    if (!post?.content) return "";
+    return DOMPurify.sanitize(post.content, {
+      ALLOWED_TAGS: ["h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "ul", "ol", "li", "a", "strong", "em", "b", "i", "u", "s", "blockquote", "pre", "code", "img", "table", "thead", "tbody", "tr", "th", "td", "hr", "span", "div", "figure", "figcaption", "sub", "sup"],
+      ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "width", "height", "class", "style", "id"],
+    });
+  }, [post?.content]);
+
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString("en-US", {
       month: "long",
