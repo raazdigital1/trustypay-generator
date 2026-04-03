@@ -44,6 +44,15 @@ const emptyPost = {
   featured_image_url: "",
 };
 
+const generateSlug = (title: string): string => {
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
 const AdminBlogPosts = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -232,7 +241,13 @@ const AdminBlogPosts = () => {
                   <Label>Title *</Label>
                   <Input
                     value={editingPost.title || ""}
-                    onChange={(e) => updateField("title", e.target.value)}
+                    onChange={(e) => {
+                      const title = e.target.value;
+                      updateField("title", title);
+                      if (!editingPost.id) {
+                        updateField("slug", generateSlug(title));
+                      }
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
