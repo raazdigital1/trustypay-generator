@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
+import DOMPurify from "dompurify";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,14 @@ const BlogPost = () => {
     };
     fetchPost();
   }, [slug]);
+
+  const sanitizedContent = useMemo(() => {
+    if (!post?.content) return "";
+    return DOMPurify.sanitize(post.content, {
+      ALLOWED_TAGS: ["h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "ul", "ol", "li", "a", "strong", "em", "b", "i", "u", "s", "blockquote", "pre", "code", "img", "table", "thead", "tbody", "tr", "th", "td", "hr", "span", "div", "figure", "figcaption", "sub", "sup"],
+      ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "width", "height", "class", "style", "id"],
+    });
+  }, [post?.content]);
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString("en-US", {
@@ -144,10 +153,10 @@ const BlogPost = () => {
             </div>
           )}
 
-          {post?.content && (
+          {sanitizedContent && (
             <div
               className="prose prose-neutral dark:prose-invert max-w-none text-foreground overflow-hidden [overflow-wrap:normal] [word-break:normal] [&_*]:max-w-full [&_p]:whitespace-normal [&_p]:break-normal [&_p]:hyphens-none [&_li]:whitespace-normal [&_li]:break-normal [&_li]:hyphens-none [&_h1]:break-normal [&_h1]:hyphens-none [&_h2]:break-normal [&_h2]:hyphens-none [&_h3]:break-normal [&_h3]:hyphens-none [&_a]:break-all [&_code]:break-all [&_pre]:overflow-x-auto [&_table]:block [&_table]:overflow-x-auto [&_img]:h-auto"
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizedContent }}
             />
           )}
         </article>
